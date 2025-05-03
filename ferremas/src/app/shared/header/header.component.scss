@@ -1,0 +1,30 @@
+/* Estilos del header existentes */
+ion-header {
+  background-color: gray; /* Color de fondo oscuro */
+  color: #ffcc00; /* Color de texto en amarillo */
+}
+
+ion-toolbar {
+  --background: gray; /* Color de fondo oscuro */
+  --color: #ffcc00; /* Texto en color amarillo */
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2); /* Sombra para profundidad */
+}
+
+/* Estilo del título */
+ion-title {
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center; /* Centrado */
+  color: #ffcc00; /* Texto amarillo */
+  margin-left: 15px;
+}
+
+/* Ajuste de la imagen en el header con un tamaño más grande */
+.header-logo {
+  width: 130px; /* Incrementa el tamaño de la imagen */
+  height: 100px;
+  margin-left: 5px;
+  object-fit: contain; /* Mantener proporciones de la imagen */
+}
+
+

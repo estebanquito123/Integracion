@@ -1,0 +1,176 @@
+/* Estilos del header existentes */
+ion-header {
+  background-color: grey; /* Color de fondo oscuro */
+  color: #ffcc00; /* Color de texto en amarillo */
+}
+
+ion-toolbar {
+  --background: grey; /* Color de fondo oscuro */
+  --color: #ffcc00; /* Texto en color amarillo */
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2); /* Sombra para profundidad */
+}
+
+/* Estilo del título */
+ion-title {
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center; /* Centrado */
+  color: #ffcc00; /* Texto amarillo */
+  margin-left: 15px;
+}
+
+/* Ajuste de la imagen en el header con un tamaño más grande */
+.header-logo {
+  width: 130px; /* Incrementa el tamaño de la imagen */
+  height: 100px;
+  margin-left: 5px;
+  object-fit: contain; /* Mantener proporciones de la imagen */
+}
+
+ion-button {
+  align-items: right;
+}
+
+/*Estilos nuevos */
+
+
+
+
+  ion-button {
+    margin-left: auto;
+    color: white;
+    font-size: 1.1rem;
+  }
+
+
+ion-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  background-color: #f4f5f8;
+
+  form {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center; // Centra los campos horizontalmente
+    margin-left: 100px;
+  }
+
+  ion-input {
+    --padding-start: 16px;
+    --padding-end: 16px;
+    --padding-top: 14px;
+    --padding-bottom: 14px;
+    --highlight-color-focused: #4a90e2;
+    --background: white;
+    width: 100%; // Hace que el campo ocupe todo el ancho del contenedor
+    border: 1px solid #d1d1d1;
+    border-radius: 20px;
+    box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.3s, box-shadow 0.3s;
+
+    &:focus-within {
+      border-color: #4a90e2;
+      box-shadow: 0px 4px 10px rgba(0, 123, 255, 0.3);
+    }
+  }
+
+  ion-button[type='submit'] {
+    margin-top: 20px;
+    margin-right: 50px;
+    width: 100%; // Ocupa todo el ancho del contenedor
+    max-width: 250px; // Tamaño máximo para el botón
+    border-radius: 20px;
+    --background: #3880ff;
+    --background-activated: #3171e0;
+    --background-focused: #4a90e2;
+    color: white;
+    font-size: 1.1rem; // Aumenta el tamaño de la fuente del botón
+    box-shadow: 0px 4px 10px rgba(56, 128, 255, 0.4);
+    transition: box-shadow 0.3s;
+
+    &:hover {
+      box-shadow: 0px 6px 15px rgba(56, 128, 255, 0.5);
+    }
+  }
+
+  .image-icon {
+    font-size: 100px;
+    opacity: 30%
+  }
+
+  ion-avatar {
+    width: 200px;
+    height: 160px;
+    --border-radious: 15px;
+    margin:0 auto;
+
+  }
+
+  .image-preview {
+    width: 150px; /* Ajusta el tamaño según lo que necesites */
+    height: 150px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px; /* Ajusta el radio para hacerlo más o menos cuadrado */
+    border: 1px solid #ccc;
+  }
+
+  @media (max-width: 467px) {
+    ion-button[type='submit'] {
+      margin-right: 0;
+    }
+
+    ion-button {
+      margin-left: 0;
+      align-items: left;
+    }
+
+    ion-title {
+      margin-left: 0;
+    }
+
+    .auth-form {
+      margin-left: 0;
+    }
+  }
+
+  .image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .auth-form {
+    width: 100%;
+    text-align: center;
+    padding: 20px;
+  }
+
+/* Posiciona el botón en la esquina superior derecha */
+/* Estilo del botón de cierre en el header */
+.close-button {
+  position: absolute; /* Posición absoluta para control total */
+  top: 10px; /* Ajuste según preferencia */
+  right: 10px; /* Ajuste según preferencia */
+  color: red !important; /* Forzamos el color rojo */
+  font-size: 1.5rem;
+}
+
+/* Color y tamaño específico del icono en el botón de cierre */
+.close-button ion-icon {
+  color: red !important; /* Forzamos el color rojo */
+  font-size: 1.8rem; /* Ajusta el tamaño del ícono */
+}
+
+ion-input {
+  color: black;
+}
+
+}

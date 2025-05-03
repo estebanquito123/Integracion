@@ -1,0 +1,60 @@
+<!-- registrar.page.html -->
+<ion-content>
+  <app-header></app-header>
+  <p>Registrar nuevo usuario</p>
+
+  <form [formGroup]="registroForm" (ngSubmit)="registrar()">
+    <!-- Campo de Email -->
+    <ion-item>
+      <ion-label position="floating">Correo electrónico</ion-label>
+      <ion-input formControlName="email" type="email"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="registroForm.get('email').hasError('required') && registroForm.get('email').touched">
+      El correo es obligatorio.
+    </ion-text>
+    <ion-text color="danger" *ngIf="registroForm.get('email').hasError('email') && registroForm.get('email').touched">
+      El correo debe tener un formato válido.
+    </ion-text>
+
+    <!-- Campo de Contraseña -->
+    <ion-item>
+      <ion-label position="floating">Contraseña</ion-label>
+      <ion-input formControlName="password" type="password"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="registroForm.get('password').hasError('required') && registroForm.get('password').touched">
+      La contraseña es obligatoria.
+    </ion-text>
+    <ion-text color="danger" *ngIf="registroForm.get('password').hasError('minlength') && registroForm.get('password').touched">
+      La contraseña debe tener al menos 6 caracteres.
+    </ion-text>
+
+    <!-- Campo de Nombre Completo -->
+    <ion-item>
+      <ion-label position="floating">Nombre Completo</ion-label>
+      <ion-input formControlName="nombreCompleto"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="registroForm.get('nombreCompleto').hasError('required') && registroForm.get('nombreCompleto').touched">
+      El nombre completo es obligatorio.
+    </ion-text>
+
+    <!-- Campo de Rol -->
+    <ion-item>
+      <ion-label position="floating">Rol</ion-label>
+      <ion-select formControlName="rol">
+        <ion-select-option value="administrador">Administrador</ion-select-option>
+        <ion-select-option value="cliente">Cliente</ion-select-option>
+      </ion-select>
+    </ion-item>
+    <ion-text color="danger" *ngIf="registroForm.get('rol').hasError('required') && registroForm.get('rol').touched">
+      El rol es obligatorio.
+    </ion-text>
+
+    <!-- Botón de Registro -->
+    <ion-button expand="block" type="submit" [disabled]="registroForm.invalid">Registrar</ion-button>
+  </form>
+
+  <app-footer></app-footer>
+</ion-content>
+
+
+

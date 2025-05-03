@@ -1,0 +1,21 @@
+  <!-- footer.component.html -->
+  <div class="pie">
+    <h1>Pie de página</h1>
+
+    <!-- Si la sesión está iniciada, muestra Home y Logout -->
+    <p *ngIf="usuario">
+      <a (click)="redirigirHome()">Home</a> <!-- Llama a la función para redirigir según el rol -->
+    </p>
+    <p *ngIf="usuario">
+      <a (click)="logout()">Logout</a>
+    </p>
+
+    <!-- Si la sesión no está iniciada, muestra Login y Crear Cuenta -->
+    <p *ngIf="!usuario">
+      <a [routerLink]="['/']">Login</a>
+    </p>
+    <p *ngIf="!usuario">
+      <a [routerLink]="['/registrar']">Crear Cuenta</a>
+    </p>
+  </div>
+

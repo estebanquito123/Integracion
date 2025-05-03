@@ -1,0 +1,78 @@
+/* compra.page.scss */
+
+/* Estilo general para el contenedor */
+ion-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  background-color: #f7f7f7;
+}
+
+/* Estilo de la tarjeta de confirmación de compra */
+ion-card {
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  background-color: #ffffff;
+}
+
+/* Encabezado de la tarjeta */
+ion-card-header {
+  text-align: center;
+  background-color: #ffcc00;
+  color: #333;
+  font-weight: bold;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+/* Estilo del título */
+ion-card-title {
+  font-size: 1.4rem;
+  padding: 8px 0;
+  color: black;
+}
+
+/* Estilo del contenido */
+ion-card-content {
+  text-align: center;
+  padding: 16px;
+}
+
+/* Imagen del producto */
+.image-preview {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.image-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+/* Información del producto */
+p {
+  font-size: 1rem;
+  color: #666;
+  margin: 4px 0;
+}
+
+/* Botón de confirmación de compra */
+ion-button {
+  --background: #28a745;
+  --border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #ffffff;
+  margin-top: 16px;
+}
+
+ion-button:hover {
+  --background: #218838;
+}
+

@@ -1,0 +1,23 @@
+<app-header></app-header>
+<ion-content>
+  <ion-list>
+    <ion-item class="product-item" *ngFor="let p of productos" color="hsl(48, 55%, 73%)">
+      <div class="image-preview">
+        <img [src]="p.imagen">
+      </div>
+      <ion-label>
+        <div class="name">{{p.nombre}}</div>
+        <div class="data">
+          <strong>Precio: </strong> {{p.precio | currency: 'CLP'}}
+        </div>
+      </ion-label>
+      <!-- Botón para comprar producto -->
+      <ion-button (click)="comprarProducto(p)" color="success" fill="clear">
+        <ion-icon slot="icon-only" name="cart-outline"></ion-icon> Comprar
+      </ion-button>
+    </ion-item>
+  </ion-list>
+</ion-content>
+<app-footer></app-footer>
+<!-- Botón para comprar producto -->
+

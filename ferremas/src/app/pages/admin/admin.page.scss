@@ -1,0 +1,75 @@
+/* Ajustes generales */
+ion-content {
+  padding: 16px;
+  background-color: hsl(48, 55%, 73%) !important; /* Color amarillo suave */
+}
+
+ion-button {
+  background-color: hsl(48, 55%, 73%) !important; /* Color amarillo suave */
+}
+
+ion-item {
+  background-color: hsl(48, 55%, 73%) !important; /* Color amarillo suave */
+}
+
+/* Contenedor de cada producto */
+.product-item {
+  margin-bottom: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  background-color: hsl(48, 55%, 73%) !important; /* Color amarillo suave */
+}
+
+/* Estilo de los datos de producto */
+ion-label {
+  display: flex;
+  flex-direction: column;
+  margin-left: 16px;
+  background-color: hsl(48, 55%, 73%) !important; /* Color amarillo suave */
+}
+
+.name {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.data {
+  font-size: 0.9em;
+  color: #666;
+}
+
+
+/* Estilo del botón flotante */
+ion-fab-button {
+  --background: #3880ff; /* Color de fondo del botón */
+  margin-bottom: 120px;
+}
+
+ion-fab-button:hover {
+  transform: scale(1.05);
+}
+
+/* Imagen del producto */
+.image-preview {
+  width: 120px;
+  height: 120px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+
+
+

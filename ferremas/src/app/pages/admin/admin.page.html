@@ -1,0 +1,31 @@
+<!-- admin.page.html -->
+<app-header></app-header>
+<ion-content>
+  <ion-list color="hsl(48, 55%, 73%)">
+    <ion-item class="product-item" *ngFor="let p of productos" color="hsl(48, 55%, 73%) ">
+      <div class="image-preview">
+        <img [src]="p.imagen">
+      </div>
+      <ion-label color="hsl(48, 55%, 73%) ">
+        <div class="name">{{p.nombre}}</div>
+        <div class="data">
+          <strong>Precio: </strong> {{p.precio | currency: 'CLP'}}
+        </div>
+      </ion-label>
+      <!-- Botón para editar producto -->
+      <ion-button (click)="addUpdateProduct(p)" color="primary" fill="clear">
+        <ion-icon slot="icon-only" name="create-outline"></ion-icon> Editar
+      </ion-button>
+      <!-- Botón para eliminar producto -->
+      <ion-button (click)="deleteProduct(p.id)" color="danger" fill="clear">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon> Eliminar
+      </ion-button>
+    </ion-item>
+  </ion-list>
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button (click)="addUpdateProduct()">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+</ion-content>
+<app-footer></app-footer>

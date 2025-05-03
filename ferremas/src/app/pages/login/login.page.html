@@ -1,0 +1,37 @@
+<!-- login.page.html -->
+<ion-content>
+  <app-header></app-header>
+  <p>Debe iniciar sesión para utilizar la app</p>
+
+  <form [formGroup]="loginForm" (ngSubmit)="login()">
+    <!-- Campo de Email -->
+    <ion-item>
+      <ion-label position="floating">Correo electrónico</ion-label>
+      <ion-input formControlName="email" type="email"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="loginForm.get('email').hasError('required') && loginForm.get('email').touched">
+      El correo es obligatorio.
+    </ion-text>
+    <ion-text color="danger" *ngIf="loginForm.get('email').hasError('email') && loginForm.get('email').touched">
+      El correo debe tener un formato válido.
+    </ion-text>
+
+    <!-- Campo de Contraseña -->
+    <ion-item>
+      <ion-label position="floating">Contraseña</ion-label>
+      <ion-input formControlName="password" type="password"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="loginForm.get('password').hasError('required') && loginForm.get('password').touched">
+      La contraseña es obligatoria.
+    </ion-text>
+    <ion-text color="danger" *ngIf="loginForm.get('password').hasError('minlength') && loginForm.get('password').touched">
+      La contraseña debe tener al menos 6 caracteres.
+    </ion-text>
+
+    <!-- Botón de Inicio de Sesión -->
+    <ion-button expand="block" type="submit" [disabled]="loginForm.invalid" >Iniciar sesión</ion-button>
+  </form>
+  <p><a [routerLink]="['/reset-password']" >¿Olvidaste tu contraseña? Haz click aqui</a></p>
+
+  <app-footer></app-footer>
+</ion-content>
