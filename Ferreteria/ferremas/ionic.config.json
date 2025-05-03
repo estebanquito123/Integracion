@@ -1,7 +1,0 @@
-{
-  "name": "ferremas",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "angular"
-}
