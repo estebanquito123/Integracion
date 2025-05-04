@@ -12,4 +12,10 @@ export interface Producto {
   imagen: string;
   nombre: string;
   precio: number;
+  stock: number; // 👈 nuevo campo
+}
+
+export interface ItemCarrito {
+  producto: Producto;
+  cantidad: number;
 }

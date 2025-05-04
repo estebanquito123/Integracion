@@ -1,0 +1,85 @@
+/* carro.page.scss */
+.empty-cart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  height: 70vh;
+
+  ion-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+    color: var(--ion-color-medium);
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    color: var(--ion-color-medium);
+    margin-bottom: 2rem;
+  }
+}
+
+ion-card {
+  margin: 1rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+ion-thumbnail {
+  --size: 80px;
+  margin-right: 10px;
+
+  img {
+    border-radius: 8px;
+    object-fit: cover;
+  }
+}
+
+ion-item {
+  --padding-start: 10px;
+  --padding-end: 10px;
+}
+
+/* cliente.page.scss - Estilos para el botón flotante del carrito */
+ion-fab-button {
+  --background: var(--ion-color-primary);
+  --background-activated: var(--ion-color-primary-shade);
+  --background-hover: var(--ion-color-primary-tint);
+  position: relative;
+}
+
+/* Estilos para los productos en la lista */
+.product-item {
+  margin-bottom: 8px;
+
+  .image-preview {
+    width: 80px;
+    height: 80px;
+    margin-right: 16px;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+  }
+
+  .name {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+  }
+
+  .data {
+    font-size: 0.9rem;
+    color: var(--ion-color-dark);
+  }
+}

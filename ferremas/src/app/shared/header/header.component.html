@@ -1,13 +1,13 @@
-<!--header.componente.html-->
+<!-- header.component.html -->
 <ion-header>
   <ion-toolbar>
-    <!-- Imagen a la izquierda del header -->
     <ion-img src="assets/img/logo-ferreteria.png" alt="Logo" slot="start" class="header-logo"></ion-img>
-
-    <!-- Título principal -->
     <ion-title>Ferremas</ion-title>
-
-    <!-- Título con saludo al usuario, si existe -->
     <ion-title *ngIf="usuario">Bienvenido, {{ usuario }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button *ngIf="usuario?.rol === 'cliente'" (click)="irAlCarrito()">
+        <ion-icon name="cart-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>

@@ -2,6 +2,7 @@
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/servicios/auth.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-header',
@@ -9,20 +10,24 @@ import { AuthService } from 'src/app/servicios/auth.service';
   styleUrls: ['./header.component.scss'],
 })
 export class HeaderComponent implements OnInit, OnDestroy {
-  usuario: string; // Campo para almacenar el nombre completo del usuario
+  usuario: any;
   private authService = inject(AuthService);
+  private router = inject(Router);
   subscriptionAuthService: Subscription;
 
   ngOnInit() {
     this.subscriptionAuthService = this.authService.usuarioCompleto$.subscribe(usuarioCompleto => {
       if (usuarioCompleto) {
-        this.usuario = usuarioCompleto.nombreCompleto; // Muestra el nombre completo del usuario
+        this.usuario = usuarioCompleto;
       }
     });
   }
 
+  irAlCarrito() {
+    this.router.navigate(['/carro']);
+  }
+
   ngOnDestroy() {
-    this.subscriptionAuthService?.unsubscribe(); // Desuscribirse del observable del estado de autenticación
+    this.subscriptionAuthService?.unsubscribe();
   }
 }
-

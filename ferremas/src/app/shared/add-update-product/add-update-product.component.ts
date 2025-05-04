@@ -25,7 +25,8 @@ export class AddUpdateProductComponent  implements OnInit {
     id: new FormControl(''),
     imagen: new FormControl('', [Validators.required,]),
     nombre: new FormControl('', [Validators.required]),
-    precio: new FormControl('', [Validators.required, Validators.min(0)])
+    precio: new FormControl('', [Validators.required, Validators.min(0)]),
+    stock: new FormControl('', [Validators.required, Validators.min(0)]) // nuevo
   });
   firebaseSvc= inject(FirebaseService);
   utilsSvc= inject(UtilsService);
@@ -43,7 +44,8 @@ export class AddUpdateProductComponent  implements OnInit {
       this.isEditMode = true;
       const productoData = {
         ...this.producto,
-        precio: this.producto.precio.toString() // Convertir precio a string para el formulario
+        precio: this.producto.precio.toString(), // Convertir precio a string para el formulario
+        stock: this.producto.stock.toString() // 🔧 Agrega esta línea para evitar error TS2345
       };
       this.form.patchValue(productoData);
     }
