@@ -1,4 +1,3 @@
-// 1. Primero corregimos el cliente.page.ts
 // cliente.page.ts
 import { Component, inject, OnInit } from '@angular/core';
 import { FirebaseService } from 'src/app/servicios/firebase.service';
