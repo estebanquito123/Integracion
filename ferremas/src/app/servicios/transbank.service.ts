@@ -1,12 +1,11 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { Observable, from, throwError } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { UtilsService } from './utils.service';
 import { environment } from '../../environments/environment';
-import { Router } from '@angular/router';
 
 @Injectable({
   providedIn: 'root'
@@ -16,13 +15,11 @@ export class TransbankService {
   private afAuth = inject(AngularFireAuth);
   private firestore = inject(AngularFirestore);
   private utilsSvc = inject(UtilsService);
-  private router = inject(Router);
 
   // URL del backend que maneja la comunicación con Transbank
-  // Asegúrate de configurar esto en tu environment.ts
-  private apiUrl = environment.apiUrl || 'http://localhost:3000/api';
+  private backendApiUrl = environment.backendApiUrl || 'http://localhost:3000/api';
 
-  // Iniciar una transacción con Transbank
+  // Iniciar una transacción con Transbank a través del backend
   iniciarTransaccion(monto: number, ordenCompra: string): Observable<any> {
     const body = {
       amount: monto,
@@ -31,13 +28,11 @@ export class TransbankService {
       sessionId: `session_${Date.now()}`
     };
 
-    console.log('Enviando petición a Transbank:', body);
-    console.log('URL de API:', `${this.apiUrl}/transbank/create`);
-
-    return this.http.post(`${this.apiUrl}/transbank/create`, body)
+    console.log('Enviando petición al backend:', body);
+    return this.http.post(`${this.backendApiUrl}/pagos/iniciar`, body)
       .pipe(
         catchError(error => {
-          console.error('Error en la llamada HTTP a Transbank:', error);
+          console.error('Error en la llamada HTTP al backend:', error);
           return throwError(() => new Error('Error al comunicarse con el servidor de pagos: ' + (error.message || error.statusText)));
         })
       );
@@ -45,7 +40,7 @@ export class TransbankService {
 
   // Confirmar una transacción después de que el usuario regresa de la página de pago
   confirmarTransaccion(token: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/transbank/commit`, { token_ws: token })
+    return this.http.post(`${this.backendApiUrl}/pagos/confirmar`, { token_ws: token })
       .pipe(
         catchError(error => {
           console.error('Error al confirmar transacción:', error);
@@ -102,8 +97,6 @@ export class TransbankService {
 
   // Procesar el pago completo (desde la selección de productos hasta la redirección a Transbank)
   async procesarPago(monto: number, productos: any[]): Promise<any> {
-    let loading = null;
-
     try {
       // 1. Generar orden de compra
       const ordenCompra = this.generarOrdenCompra();
@@ -129,12 +122,12 @@ export class TransbankService {
       });
       console.log('Transacción guardada con ID:', transaccion.id);
 
-      // 4. Iniciar la transacción con Transbank
+      // 4. Iniciar la transacción con Transbank a través del backend
       return new Promise((resolve, reject) => {
         console.log('Iniciando transacción con Transbank...');
         this.iniciarTransaccion(monto, ordenCompra).subscribe({
           next: (response) => {
-            console.log('Respuesta de Transbank recibida:', response);
+            console.log('Respuesta del backend recibida:', response);
 
             if (!response.url || !response.token) {
               this.actualizarEstadoTransaccion(transaccion.id, 'error', {

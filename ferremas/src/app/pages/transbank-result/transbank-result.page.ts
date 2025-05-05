@@ -76,13 +76,13 @@ export class TransbankResultPage implements OnInit {
       const transaccionInfo = JSON.parse(transaccionInfoStr);
       console.log('Información de transacción recuperada:', transaccionInfo);
 
-      // Confirmar la transacción con Transbank
+      // Confirmar la transacción con el backend
       console.log('Confirmando transacción con token:', token);
       this.transbankService.confirmarTransaccion(token).subscribe({
         next: async (response) => {
-          console.log('Respuesta de Transbank:', response);
+          console.log('Respuesta del backend:', response);
 
-          if (response.status === 'AUTHORIZED') {
+          if (response.success && response.status === 'AUTHORIZED') {
             // Transacción exitosa
             console.log('Transacción autorizada');
             this.transaccionExitosa = true;
@@ -134,7 +134,7 @@ export class TransbankResultPage implements OnInit {
             });
           } else {
             // Transacción rechazada
-            console.log('Transacción rechazada:', response.status);
+            console.log('Transacción rechazada o error en respuesta:', response);
             const mensaje = response.status_description || 'Transacción rechazada por Webpay';
             this.manejarErrorTransaccion(mensaje);
 
