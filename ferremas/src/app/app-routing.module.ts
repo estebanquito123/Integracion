@@ -36,16 +36,17 @@ const routes: Routes = [
     loadChildren: () => import('./pages/cliente/cliente.module').then( m => m.ClientePageModule)
   },
   {
-    path: 'compra',
-    loadChildren: () => import('./pages/compra/compra.module').then( m => m.CompraPageModule)
-  },
-  {
     path: 'vendedor',
     loadChildren: () => import('./pages/vendedor/vendedor.module').then( m => m.VendedorPageModule)
-  },  {
+  },
+  {
     path: 'carro',
     loadChildren: () => import('./pages/carro/carro.module').then( m => m.CarroPageModule)
+  },  {
+    path: 'transbank-result',
+    loadChildren: () => import('./pages/transbank-result/transbank-result.module').then( m => m.TransbankResultPageModule)
   },
+
 
 ];
 

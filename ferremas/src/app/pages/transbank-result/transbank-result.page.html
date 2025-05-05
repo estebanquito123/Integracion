@@ -1,0 +1,50 @@
+<app-header></app-header>
+<ion-content>
+  <div class="result-container">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>{{ pageTitle }}</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <!-- Indicador de carga mientras se procesa la respuesta -->
+        <div *ngIf="cargando" class="loading-container">
+          <ion-spinner name="circular"></ion-spinner>
+          <p>Procesando el resultado de tu pago...</p>
+        </div>
+
+        <!-- Mostramos mensaje según el estado de la transacción -->
+        <div *ngIf="transaccionExitosa && !cargando" class="success-container">
+          <ion-icon name="checkmark-circle" color="success" size="large"></ion-icon>
+          <h2>¡Pago realizado con éxito!</h2>
+          <p>Tu pago ha sido procesado correctamente.</p>
+          <div class="transaction-details">
+            <p><strong>Número de orden:</strong> {{ detallesTransaccion.ordenCompra }}</p>
+            <p><strong>Monto:</strong> {{ detallesTransaccion.monto | currency:'CLP' }}</p>
+            <p><strong>Fecha:</strong> {{ detallesTransaccion.fecha | date:'medium' }}</p>
+            <p><strong>Código de autorización:</strong> {{ detallesTransaccion.codigoAutorizacion }}</p>
+          </div>
+        </div>
+
+        <div *ngIf="!transaccionExitosa && !cargando" class="error-container">
+          <ion-icon name="close-circle" color="danger" size="large"></ion-icon>
+          <h2>Pago no completado</h2>
+          <p>{{ mensajeError || 'Hubo un problema al procesar tu pago. Por favor, intenta nuevamente.' }}</p>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="action-buttons" *ngIf="!cargando">
+          <ion-button expand="block" [routerLink]="['/cliente']">
+            <ion-icon name="home-outline" slot="start"></ion-icon>
+            Volver a la tienda
+          </ion-button>
+
+          <ion-button *ngIf="!transaccionExitosa" expand="block" color="danger" [routerLink]="['/carro']">
+            <ion-icon name="cart-outline" slot="start"></ion-icon>
+            Volver al carrito
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>
+<app-footer></app-footer>

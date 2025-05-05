@@ -4,9 +4,9 @@ import { FormsModule } from '@angular/forms';
 
 import { IonicModule } from '@ionic/angular';
 
-import { CompraPageRoutingModule } from './compra-routing.module';
+import { TransbankResultPageRoutingModule } from './transbank-result-routing.module';
 
-import { CompraPage } from './compra.page';
+import { TransbankResultPage } from './transbank-result.page';
 import { SharedModule } from 'src/app/shared/shared.module';
 
 @NgModule({
@@ -14,9 +14,9 @@ import { SharedModule } from 'src/app/shared/shared.module';
     CommonModule,
     FormsModule,
     IonicModule,
-    CompraPageRoutingModule,
+    TransbankResultPageRoutingModule,
     SharedModule
   ],
-  declarations: [CompraPage]
+  declarations: [TransbankResultPage]
 })
-export class CompraPageModule {}
+export class TransbankResultPageModule {}
