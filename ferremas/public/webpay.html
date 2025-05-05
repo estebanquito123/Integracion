@@ -1,0 +1,43 @@
+<button id="pagarBtn">Finalizar compra</button>
+
+<script>
+  document.getElementById("pagarBtn").addEventListener("click", () => {
+    const body = {
+      amount: 1000, // o cualquier monto
+      buyOrder: "orden_" + Math.floor(Math.random() * 1000000),
+      sessionId: "sesion_" + Math.floor(Math.random() * 1000000),
+      returnUrl: "http://localhost:3000/public/retorno.html" // o el que tú quieras
+    };
+
+    fetch("/api/pagos/iniciar", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.url && data.token) {
+        // Redirige al formulario de Webpay
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = data.url;
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'token_ws';
+        input.value = data.token;
+
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+      } else {
+        console.error('No se recibió token ni URL:', data);
+      }
+    })
+    .catch(error => {
+      console.error('Error al iniciar la transacción:', error);
+    });
+  });
+</script>

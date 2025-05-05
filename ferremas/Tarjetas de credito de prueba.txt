@@ -1,0 +1,19 @@
+Transaccion aprobada: 
+4051 8856 0044 6623
+CVV 123
+any expiration date
+
+RUT: 11.111.111-1
+
+Clave: 123
+(Es la clave ficticia del banco en pruebas)
+
+transacción rechazada:
+5186 0595 5959 0568
+CVV 123
+any expiration date
+
+
+código comercial: 597055555532
+
+api secreta:  579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C

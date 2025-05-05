@@ -63,67 +63,43 @@ export class CarroPage implements OnInit {
     });
   }
 
-  async finalizarCompra() {
-    // Verificar si hay productos en el carrito
-    if (this.productos.length === 0) {
-      this.utilsSvc.presentToast({
-        message: 'El carrito está vacío',
-        duration: 1500,
-        color: 'warning',
-        position: 'middle'
-      });
-      return;
-    }
+  finalizarCompra() {
+    const body = {
+      amount: 1000,
+      buyOrder: 'orden_' + Math.floor(Math.random() * 1000000),
+      sessionId: 'sesion_' + Math.floor(Math.random() * 1000000),
+      returnUrl: 'http://localhost:3000/public/retorno.html'
+    };
 
-    try {
-      // Verificar si el usuario está autenticado
-      const usuario = await firstValueFrom(this.authService.usuarioCompleto$);
-      if (!usuario) {
-        this.utilsSvc.presentToast({
-          message: 'Debes iniciar sesión para realizar una compra',
-          duration: 2000,
-          color: 'warning',
-          position: 'middle'
-        });
-        this.router.navigate(['/'], { queryParams: { returnUrl: '/carro' } });
-        return;
+    fetch('http://localhost:3000/api/pagos/iniciar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.token && data.url) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = data.url;
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'token_ws';
+        input.value = data.token;
+
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+      } else {
+        console.error('No se recibió token ni URL');
       }
-
-      // Mostrar opciones de pago
-      const alert = await this.alertController.create({
-        header: 'Método de pago',
-        message: '¿Cómo deseas pagar tu compra?',
-        buttons: [
-          {
-            text: 'Cancelar',
-            role: 'cancel',
-            handler: () => {}
-          },
-          {
-            text: 'Pagar con Webpay',
-            handler: () => {
-              this.pagarConTransbank();
-            }
-          },
-          {
-            text: 'Pagar al retirar',
-            handler: () => {
-              this.pagarAlRetirar();
-            }
-          }
-        ]
-      });
-
-      await alert.present();
-    } catch (error) {
-      console.error('Error al finalizar compra:', error);
-      this.utilsSvc.presentToast({
-        message: 'Error al procesar la solicitud',
-        duration: 2000,
-        color: 'danger',
-        position: 'middle'
-      });
-    }
+    })
+    .catch(err => {
+      console.error('Error al iniciar transacción:', err);
+    });
   }
 
   async pagarConTransbank() {

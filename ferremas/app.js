@@ -14,6 +14,9 @@ app.use(bodyParser.json());
 // Instancia de Transacción (usa configuración por defecto de integración)
 const transaction = new WebpayPlus.Transaction();
 
+app.use(express.static('public'));
+
+
 // Iniciar una transacción
 app.post('/api/pagos/iniciar', async (req, res) => {
   const { amount, buyOrder, sessionId, returnUrl } = req.body;

@@ -1,3 +1,4 @@
+//transbank-result.ts
 import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TransbankService } from 'src/app/servicios/transbank.service';
