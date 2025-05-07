@@ -14,7 +14,6 @@
     <!-- Pago exitoso -->
     <div *ngIf="estado === 'exito'">
       <h2>✅ ¡Pago exitoso!</h2>
-      <p><strong>Token:</strong> {{ datos.token_ws }}</p>
 
       <ion-card *ngIf="detallesTransaccion">
         <ion-card-header>
@@ -27,15 +26,18 @@
           <p><strong>Fecha:</strong> {{ detallesTransaccion.transaction_date }}</p>
         </ion-card-content>
       </ion-card>
+
+      <ion-button expand="block" color="medium" routerLink="/home">
+        Volver al inicio
+      </ion-button>
     </div>
 
     <!-- Pago fallido -->
     <div *ngIf="estado === 'fallo'">
       <h2>❌ El pago no fue autorizado</h2>
-      <p>Token: {{ datos.TBK_TOKEN }}</p>
-      <p>Orden de compra: {{ datos.TBK_ORDEN_COMPRA }}</p>
+      <p>Su tarjeta fue rechazada</p>
 
-      <ion-button expand="block" color="danger" routerLink="/home">
+      <ion-button expand="block" color="danger" routerLink="/cliente">
         Volver al inicio
       </ion-button>
     </div>
@@ -45,19 +47,10 @@
       <h2>⚠️ No se pudo determinar el resultado del pago</h2>
       <p>Es posible que el proceso haya sido interrumpido o abortado por el usuario.</p>
 
-      <ion-button expand="block" color="medium" routerLink="/home">
+      <ion-button expand="block" color="medium" routerLink="/cliente">
         Volver al inicio
       </ion-button>
     </div>
-
-    <!-- Mostrar JSON para depuración (opcional) -->
-    <hr />
-    <ion-label color="medium"><strong>Datos recibidos:</strong></ion-label>
-    <pre>{{ datos | json }}</pre>
-
-    <div *ngIf="detallesTransaccion">
-      <ion-label color="medium"><strong>Detalles:</strong></ion-label>
-      <pre>{{ detallesTransaccion | json }}</pre>
-    </div>
   </div>
 </ion-content>
+<app-footer></app-footer>
