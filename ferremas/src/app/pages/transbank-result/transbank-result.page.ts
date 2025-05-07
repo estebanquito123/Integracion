@@ -1,7 +1,7 @@
-
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-transbank-result',
@@ -9,10 +9,11 @@ import { HttpClient } from '@angular/common/http';
   styleUrls: ['./transbank-result.page.scss'],
 })
 export class TransbankResultPage implements OnInit {
-  estado: 'exito' | 'fallo' | 'desconocido' = 'desconocido';
+
+  estado: 'exito' | 'fallo' | 'desconocido' | null = null;
   datos: any = {};
   detallesTransaccion: any = null;
-  cargando: boolean = true;
+  cargando: boolean = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -21,21 +22,22 @@ export class TransbankResultPage implements OnInit {
 
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
-      console.log('Parámetros Transbank:', params);
-      this.datos = params;
+      console.log('Parámetros Transbank recibidos:', params);
+      const tokenWs = params['token_ws'];
+      const tbkToken = params['TBK_TOKEN'];
 
-      // Si TBK_TOKEN existe, usamos eso para verificar estado
-      if (params['TBK_TOKEN']) {
-        this.verificarEstadoTransaccion(params['TBK_TOKEN']);
-      }
-      // Si token_ws existe, probablemente es resultado directo y exitoso
-      else if (params['token_ws']) {
-        this.verificarEstadoTransaccion(params['token_ws']);
-      }
-      // Modo fallback o desconocido
-      else {
+      if (tbkToken) {
+        // Transacción fallida o cancelada
+        this.estado = 'fallo';
+        this.datos.TBK_TOKEN = tbkToken;
+        this.datos.TBK_ORDEN_COMPRA = params['TBK_ORDEN_COMPRA'];
+      } else if (tokenWs) {
+        // Transacción posiblemente exitosa, verificar con backend
+        console.log('Verificando estado con token:', tokenWs);
+        this.verificarEstadoTransaccion(tokenWs);
+      } else {
+        // No se recibió ningún token válido
         this.estado = 'desconocido';
-        this.cargando = false;
       }
     });
   }
@@ -43,22 +45,21 @@ export class TransbankResultPage implements OnInit {
   verificarEstadoTransaccion(token: string) {
     this.cargando = true;
 
-    // Llamar al backend para verificar el estado real de la transacción
-    this.http.get(`http://localhost:3000/api/pagos/verificar/${token}`)
+    this.http.get(`${environment.backendApiUrl}/pagos/verificar/${token}`)
       .subscribe(
         (response: any) => {
           console.log('Respuesta de verificación:', response);
           this.detallesTransaccion = response;
 
-          // Verificar si la transacción fue exitosa según la respuesta
           if (response.status === 'AUTHORIZED') {
             this.estado = 'exito';
-            this.datos.token_ws = token; // Asegurar que token_ws exista para la vista
+            this.datos.token_ws = token;
           } else {
             this.estado = 'fallo';
             this.datos.TBK_TOKEN = token;
             this.datos.TBK_ORDEN_COMPRA = response.buy_order || 'No disponible';
           }
+
           this.cargando = false;
         },
         (error) => {

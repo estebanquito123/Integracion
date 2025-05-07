@@ -1,3 +1,4 @@
+//carro.page.ts
 import { Component, OnInit, inject } from '@angular/core';
 import { CarritoService } from 'src/app/servicios/carrito.service';
 import { Producto } from 'src/app/models/bd.models';
@@ -68,7 +69,7 @@ export class CarroPage implements OnInit {
       amount: 1000,
       buyOrder: 'orden_' + Math.floor(Math.random() * 1000000),
       sessionId: 'sesion_' + Math.floor(Math.random() * 1000000),
-      returnUrl: 'http://localhost:3000/public/retorno.html'
+      returnUrl: 'http://localhost:8100/transbank-result'
     };
 
     fetch('http://localhost:3000/api/pagos/iniciar', {

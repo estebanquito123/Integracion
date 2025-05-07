@@ -1,4 +1,3 @@
-<!-- transbank-result.page.html -->
 <ion-header>
   <ion-toolbar>
     <ion-title>Resultado del Pago</ion-title>
@@ -12,9 +11,10 @@
   </div>
 
   <div *ngIf="!cargando">
+    <!-- Pago exitoso -->
     <div *ngIf="estado === 'exito'">
       <h2>✅ ¡Pago exitoso!</h2>
-      <p>Token: {{ datos.token_ws }}</p>
+      <p><strong>Token:</strong> {{ datos.token_ws }}</p>
 
       <ion-card *ngIf="detallesTransaccion">
         <ion-card-header>
@@ -29,31 +29,34 @@
       </ion-card>
     </div>
 
+    <!-- Pago fallido -->
     <div *ngIf="estado === 'fallo'">
-      <h2>❌ Pago fallido o cancelado</h2>
+      <h2>❌ El pago no fue autorizado</h2>
       <p>Token: {{ datos.TBK_TOKEN }}</p>
       <p>Orden de compra: {{ datos.TBK_ORDEN_COMPRA }}</p>
 
-      <ion-button routerLink="/home">
+      <ion-button expand="block" color="danger" routerLink="/home">
         Volver al inicio
       </ion-button>
     </div>
 
+    <!-- Estado desconocido -->
     <div *ngIf="estado === 'desconocido'">
-      <h2>⚠️ Estado de transacción no reconocido</h2>
-      <p>Es posible que el usuario haya abortado el proceso.</p>
+      <h2>⚠️ No se pudo determinar el resultado del pago</h2>
+      <p>Es posible que el proceso haya sido interrumpido o abortado por el usuario.</p>
 
-      <ion-button routerLink="/home">
+      <ion-button expand="block" color="medium" routerLink="/home">
         Volver al inicio
       </ion-button>
     </div>
 
+    <!-- Mostrar JSON para depuración (opcional) -->
     <hr />
-    <p>Datos recibidos:</p>
+    <ion-label color="medium"><strong>Datos recibidos:</strong></ion-label>
     <pre>{{ datos | json }}</pre>
 
     <div *ngIf="detallesTransaccion">
-      <p>Detalles de la transacción:</p>
+      <ion-label color="medium"><strong>Detalles:</strong></ion-label>
       <pre>{{ detallesTransaccion | json }}</pre>
     </div>
   </div>
