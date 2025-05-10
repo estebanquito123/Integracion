@@ -1,13 +1,32 @@
-<ion-header [translucent]="true">
+<ion-header>
   <ion-toolbar>
-    <ion-title>vendedor</ion-title>
+    <ion-title>Pedidos Recibidos</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">vendedor</ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-content class="ion-padding">
+  <ion-list *ngIf="pedidos.length > 0; else sinPedidos">
+    <ion-item *ngFor="let pedido of pedidos">
+      <ion-label>
+        <h2>Orden: {{ pedido.ordenCompra }}</h2>
+        <p><strong>Pago:</strong> {{ pedido.metodoPago }}</p>
+        <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+        <p><strong>Entrega:</strong> {{ pedido.retiro }}</p>
+        <div *ngIf="pedido.productos?.length">
+          <p><strong>Productos:</strong></p>
+          <ul>
+            <li *ngFor="let p of pedido.productos">
+              {{ p.nombre }} - ${{ p.precio }}
+            </li>
+          </ul>
+        </div>
+      </ion-label>
+    </ion-item>
+  </ion-list>
+
+  <ng-template #sinPedidos>
+    <ion-text color="medium">
+      <p>No hay pedidos por el momento.</p>
+    </ion-text>
+  </ng-template>
 </ion-content>

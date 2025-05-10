@@ -1,3 +1,4 @@
+import { MetodoRetiroModal } from './metodo-retiro-modal/metodo-retiro-modal.component';
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular';
@@ -9,11 +10,13 @@ import { ReactiveFormsModule } from '@angular/forms';
 
 
 
+
 @NgModule({
   declarations: [
     FooterComponent,
     HeaderComponent,
-    AddUpdateProductComponent
+    AddUpdateProductComponent,
+    MetodoRetiroModal
   ],
   imports: [
     CommonModule,
@@ -24,7 +27,9 @@ import { ReactiveFormsModule } from '@angular/forms';
   exports: [
     FooterComponent,
     HeaderComponent,
-    AddUpdateProductComponent
+    AddUpdateProductComponent,
+    MetodoRetiroModal
+
   ]
 })
 export class SharedModule { }

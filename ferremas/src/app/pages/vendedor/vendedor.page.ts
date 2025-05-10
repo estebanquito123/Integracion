@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
+import { FirebaseService } from 'src/app/servicios/firebase.service';
 
 @Component({
   selector: 'app-vendedor',
@@ -6,10 +7,12 @@ import { Component, OnInit } from '@angular/core';
   styleUrls: ['./vendedor.page.scss'],
 })
 export class VendedorPage implements OnInit {
-
-  constructor() { }
+  firebaseSvc = inject(FirebaseService);
+  pedidos: any[] = [];
 
   ngOnInit() {
+    this.firebaseSvc.getPedidosPendientes().subscribe(data => {
+      this.pedidos = data;
+    });
   }
-
 }

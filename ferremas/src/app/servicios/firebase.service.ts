@@ -47,6 +47,20 @@ export class FirebaseService {
     const usuarioId = JSON.parse(localStorage.getItem('usuario')).uid; // Obtener el ID del usuario logueado
     return this.firestore.collection(`usuarios/${usuarioId}/compras`).add(compra);
 }
+async notificarPedidoAVendedor(pedido: any) {
+  return this.firestore.collection('pedidosPendientes').add(pedido);
+}
+
+getPedidosPendientes() {
+  return this.firestore.collection('pedidosPendientes').valueChanges({ idField: 'id' });
+}
+
+getSucursales() {
+  const ref = collection(getFirestore(), 'sucursales');
+  return collectionData(query(ref), { idField: 'id' });
+}
+
+
 }
 
 

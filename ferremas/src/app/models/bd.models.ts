@@ -19,3 +19,11 @@ export interface ItemCarrito {
   producto: Producto;
   cantidad: number;
 }
+
+// crear un objeto que representa la compra completa
+export interface DetalleCompra {
+  metodoRetiro: 'retiro' | 'despacho';
+  direccion: string;
+  metodoPago: 'webpay' | 'transferencia';
+}
+

@@ -1,4 +1,4 @@
-//carro.page.ts
+// ✅ carro.page.ts
 import { Component, OnInit, inject } from '@angular/core';
 import { CarritoService } from 'src/app/servicios/carrito.service';
 import { Producto } from 'src/app/models/bd.models';
@@ -8,7 +8,7 @@ import { FirebaseService } from 'src/app/servicios/firebase.service';
 import { TransbankService } from 'src/app/servicios/transbank.service';
 import { AlertController } from '@ionic/angular';
 import { AuthService } from 'src/app/servicios/auth.service';
-import { firstValueFrom } from 'rxjs'; // Importamos firstValueFrom para manejar observables como promesas
+import { MetodoRetiroModal } from 'src/app/shared/metodo-retiro-modal/metodo-retiro-modal.component';
 
 @Component({
   selector: 'app-carro',
@@ -19,7 +19,6 @@ export class CarroPage implements OnInit {
   productos: Producto[] = [];
   total = 0;
 
-  // Inyección de servicios
   carritoService = inject(CarritoService);
   utilsSvc = inject(UtilsService);
   router = inject(Router);
@@ -64,131 +63,111 @@ export class CarroPage implements OnInit {
     });
   }
 
-  finalizarCompra() {
-    const body = {
-      amount: 1000,
-      buyOrder: 'orden_' + Math.floor(Math.random() * 1000000),
-      sessionId: 'sesion_' + Math.floor(Math.random() * 1000000),
-      returnUrl: 'http://localhost:8100/transbank-result'
-    };
+  async finalizarCompra() {
+  const datos = await this.utilsSvc.presentModal({
+    component: MetodoRetiroModal,
+  });
 
-    fetch('http://localhost:3000/api/pagos/iniciar', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.token && data.url) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = data.url;
+  if (!datos) return;
 
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'token_ws';
-        input.value = data.token;
+  const tipoRetiro = datos.tipoRetiro;
+  const direccion = datos.tipoRetiro === 'domicilio' ? datos.direccion : `Sucursal: ${datos.sucursal}`;
 
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-      } else {
-        console.error('No se recibió token ni URL');
-      }
-    })
-    .catch(err => {
-      console.error('Error al iniciar transacción:', err);
+  this.elegirMetodoPago(tipoRetiro, direccion);
+}
+
+
+  async elegirMetodoPago(retiro: string, direccion: string) {
+    const alert = await this.alertController.create({
+      header: 'Selecciona el método de pago',
+      buttons: [
+        {
+          text: 'Transferencia',
+          handler: () => this.pagarPorTransferencia(retiro, direccion)
+        },
+        {
+          text: 'Webpay',
+          handler: () => this.pagarConTransbank(retiro, direccion)
+        }
+      ]
     });
+    await alert.present();
   }
 
-  async pagarConTransbank() {
+  async pagarConTransbank(retiro: string, direccion: string) {
     const loading = await this.utilsSvc.loading();
     await loading.present();
 
     try {
-      // Verificar si hay productos
-      if (this.productos.length === 0) {
-        throw new Error('No hay productos en el carrito');
+      if (this.productos.length === 0 || this.total <= 0) {
+        throw new Error('Carrito vacío o monto inválido');
       }
 
-      // El total debe ser un número positivo
-      if (this.total <= 0) {
-        throw new Error('El monto a pagar debe ser mayor a cero');
-      }
-
-      console.log('Iniciando pago con Transbank por:', this.total);
-
-      // Procesar el pago con Transbank
       await this.transbankService.procesarPago(
         this.total,
-        this.productos
+        this.productos,
+        retiro,
+        direccion
       );
 
-      // La redirección a Webpay se maneja en el servicio de Transbank
-      // El loading se cerrará en el catch o en el servicio
-
     } catch (error) {
-      console.error('Error al procesar el pago con Transbank:', error);
-      loading.dismiss();
-
+      console.error('Error al pagar con Transbank:', error);
       this.utilsSvc.presentToast({
-        message: 'Error al iniciar el proceso de pago: ' + (error.message || 'Error desconocido'),
+        message: 'Error en el pago: ' + error.message,
         duration: 3000,
-        color: 'danger',
-        position: 'middle',
-        icon: 'alert-circle-outline'
+        color: 'danger'
       });
+    } finally {
+      loading.dismiss();
     }
   }
 
-  async pagarAlRetirar() {
+  async pagarPorTransferencia(retiro: string, direccion: string) {
     const loading = await this.utilsSvc.loading();
     await loading.present();
 
     try {
-      // Crear orden con identificador único
       const ordenCompra = this.transbankService.generarOrdenCompra();
 
-      // Guardar cada producto como una compra con estado pendiente
       for (const producto of this.productos) {
         const compra = {
           productoId: producto.id,
           nombre: producto.nombre,
           precio: producto.precio,
           fecha: new Date().toISOString(),
-          ordenCompra: ordenCompra,
+          ordenCompra,
           estadoPago: 'pendiente',
-          metodoPago: 'efectivo_al_retirar'
+          metodoPago: 'transferencia',
+          direccion,
+          retiro
         };
         await this.firebaseSvc.guardarCompra(compra);
       }
 
-      // Vaciamos el carrito después de registrar la compra
-      this.carritoService.clearCart();
-      this.productos = [];
-      this.total = 0;
-
-      this.utilsSvc.presentToast({
-        message: '¡Pedido registrado con éxito! Paga al retirar tu compra.',
-        duration: 3000,
-        color: 'success',
-        position: 'middle',
-        icon: 'checkmark-circle-outline'
+      await this.firebaseSvc.notificarPedidoAVendedor({
+        productos: this.productos,
+        ordenCompra,
+        metodoPago: 'transferencia',
+        direccion,
+        retiro,
+        fecha: new Date().toISOString()
       });
 
-      // Redirigimos al cliente a la página principal
+      this.carritoService.clearCart();
       this.router.navigate(['/cliente']);
 
-    } catch (error) {
-      console.error('Error al procesar pago al retirar:', error);
       this.utilsSvc.presentToast({
-        message: 'Error al registrar la compra: ' + (error.message || 'Error desconocido'),
+        message: 'Pedido registrado. Esperando transferencia.',
+        duration: 3000,
+        color: 'success'
+      });
+
+    } catch (error) {
+      console.error(error);
+      this.utilsSvc.presentToast({
+        message: 'Error al registrar pedido',
         duration: 2000,
-        color: 'danger',
-        position: 'middle',
-        icon: 'alert-circle-outline'
+        color: 'danger'
       });
     } finally {
       loading.dismiss();
