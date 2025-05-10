@@ -59,6 +59,10 @@ getSucursales() {
   const ref = collection(getFirestore(), 'sucursales');
   return collectionData(query(ref), { idField: 'id' });
 }
+addSucursal(data: { nombre: string, direccion: string }) {
+  const path = 'sucursales';
+  return addDoc(collection(getFirestore(), path), data);
+}
 
 
 }
