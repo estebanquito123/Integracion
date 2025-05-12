@@ -5,6 +5,7 @@ export interface Usuario {
   email: string
   password:string;
   rol: string;
+  pushToken?: string;
 }
 
 export interface Producto {
@@ -12,7 +13,7 @@ export interface Producto {
   imagen: string;
   nombre: string;
   precio: number;
-  stock: number; // 👈 nuevo campo
+  stock: number;
 }
 
 export interface ItemCarrito {

@@ -99,6 +99,24 @@ export class TransbankService {
       throw new Error('Debes iniciar sesión para realizar el pago');
     }
 
+    // Store order data in localStorage before redirecting
+    localStorage.setItem('carritoWebpay', JSON.stringify(productos));
+    localStorage.setItem('direccionWebpay', direccion || '');
+    localStorage.setItem('retiroWebpay', retiro || '');
+    localStorage.setItem('currentTransaction', ordenCompra);
+
+    // Also store the transaction details in Firestore for recovery
+    await this.firestore.collection('transacciones').add({
+      ordenCompra,
+      monto,
+      productos,
+      retiro,
+      direccion,
+      fechaInicio: new Date(),
+      usuarioId: usuario.uid,
+      estado: 'iniciada'
+    });
+
     const transaccion = await this.guardarTransaccion({
       ordenCompra,
       monto,

@@ -1,3 +1,15 @@
+
+//app.js(backend)
+const admin = require('firebase-admin');
+require('dotenv').config(); //
+
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -58,4 +70,24 @@ app.get('/api/pagos/verificar/:token', async (req, res) => {
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
+});
+app.post('/api/notificar-vendedor', async (req, res) => {
+  const { token, title, body, data } = req.body;
+
+  const message = {
+    token,
+    notification: {
+      title,
+      body
+    },
+    data
+  };
+
+  try {
+    await admin.messaging().send(message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error enviando push:', error);
+    res.status(500).json({ error: 'Fallo al enviar notificación' });
+  }
 });

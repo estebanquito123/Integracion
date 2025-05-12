@@ -1,8 +1,11 @@
+//auth.service.ts
 import { Injectable } from '@angular/core';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { BehaviorSubject } from 'rxjs';
 import { Usuario } from '../models/bd.models';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { getAuth } from 'firebase/auth';
 
 @Injectable({
   providedIn: 'root'
@@ -39,28 +42,27 @@ export class AuthService {
   }
 
   async login(email: string, password: string): Promise<Usuario> {
-    try {
-      const userCredential = await this.afAuth.signInWithEmailAndPassword(email, password);
-      this.isAuthenticatedSubject.next(true);
+  try {
+    const userCredential = await this.afAuth.signInWithEmailAndPassword(email, password);
+    this.isAuthenticatedSubject.next(true);
 
-      const userDoc = await this.firestore.collection('usuarios')
-        .doc(userCredential.user.uid)
-        .get()
-        .toPromise();
+    const userDoc = await this.firestore.collection('usuarios')
+      .doc(userCredential.user.uid)
+      .get()
+      .toPromise();
 
-      const usuarioData = userDoc.data() as Usuario;
-      this.usuarioCompletoSubject.next(usuarioData);
-      this.usuarioSubject.next(usuarioData.nombreCompleto || '');
+    const usuarioData = userDoc.data() as Usuario;
+    this.usuarioCompletoSubject.next(usuarioData);
+    this.usuarioSubject.next(usuarioData.nombreCompleto || '');
+    localStorage.setItem('usuario', JSON.stringify(usuarioData));
 
-      // Guardar en localStorage
-      localStorage.setItem('usuario', JSON.stringify(usuarioData));
-
-      return usuarioData;
-    } catch (error) {
-      this.isAuthenticatedSubject.next(false);
-      throw error;
-    }
+    return usuarioData;
+  } catch (error) {
+    this.isAuthenticatedSubject.next(false);
+    throw error;
   }
+}
+
 
   logout(): void {
     this.afAuth.signOut();
@@ -103,4 +105,13 @@ export class AuthService {
       }
     }
   }
+
+async registrarTokenPush(token: string, uid: string) {
+  if (!uid || !token) return;
+  await this.firestore.collection('usuarios').doc(uid).update({
+    pushToken: token
+  });
+}
+
+
 }

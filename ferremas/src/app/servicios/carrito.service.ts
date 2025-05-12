@@ -66,4 +66,9 @@ export class CarritoService {
   private saveToStorage() {
     localStorage.setItem('carrito', JSON.stringify(this.carrito));
   }
+setItems(productos: Producto[]) {
+  this.carrito = [...productos]; // Replace current cart with new products
+  this.updateSubjects();
+  this.saveToStorage();
+}
 }

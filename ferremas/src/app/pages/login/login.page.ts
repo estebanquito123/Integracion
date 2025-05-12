@@ -50,7 +50,27 @@ export class LoginPage implements OnInit, OnDestroy {
     try {
       const usuarioData = await this.authService.login(email, password);
       if (usuarioData) {
-        const ruta = usuarioData.rol === 'administrador' ? '/admin' : '/cliente';
+  this.mostrarAlerta('Éxito', 'Usuario registrado exitosamente');
+
+  let ruta = '/inicio'; // ruta por defecto
+
+  switch (usuarioData.rol) {
+    case 'administrador':
+      ruta = '/admin';
+      break;
+    case 'cliente':
+      ruta = '/cliente';
+      break;
+    case 'vendedor':
+      ruta = '/vendedor';
+      break;
+    case 'bodeguero':
+      ruta = '/bodeguero';
+      break;
+    case 'contador':
+      ruta = '/contador';
+      break;
+  }
         this.router.navigate([ruta]);
       }
     } catch (error) {

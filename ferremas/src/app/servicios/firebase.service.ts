@@ -1,7 +1,7 @@
 //firebase.service
 import { Injectable, inject } from '@angular/core';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
-import { Usuario } from '../models/bd.models';
+import { Producto, Usuario } from '../models/bd.models';
 import { getAuth, updateProfile, createUserWithEmailAndPassword  } from 'firebase/auth';
 import { addDoc, collection, getFirestore, collectionData, query, doc, deleteDoc, updateDoc} from '@angular/fire/firestore';
 import {AngularFirestore} from '@angular/fire/compat/firestore'
@@ -64,8 +64,112 @@ addSucursal(data: { nombre: string, direccion: string }) {
   return addDoc(collection(getFirestore(), path), data);
 }
 
+async enviarNotificacionAlVendedor(pedido: {
+    productos: any[];
+    metodoPago: string;
+    retiro: string;
+    direccion: string;
+    ordenCompra: string;
+  }) {
+    const vendedoresSnap = await this.firestore.collection('usuarios', ref =>
+      ref.where('rol', '==', 'vendedor')
+    ).get().toPromise();
+
+    for (const doc of vendedoresSnap.docs) {
+      const vendedor = doc.data() as Usuario;
+      if (vendedor.pushToken) {
+        const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
+        const tipoEntrega = pedido.retiro === 'domicilio' ? 'Despacho a domicilio' : 'Retiro en tienda';
+
+        await fetch('https://tu-api.com/api/notificar-vendedor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: vendedor.pushToken,
+            title: '🛒 Nuevo Pedido',
+            body: `${tipoEntrega} - ${pedido.direccion}\nProductos: ${productosTexto}`,
+            data: {
+              ordenCompra: pedido.ordenCompra,
+              metodoPago: pedido.metodoPago,
+              retiro: pedido.retiro,
+              direccion: pedido.direccion,
+              productos: JSON.stringify(pedido.productos)
+            }
+          })
+        });
+      }
+    }
+  }
+
+getNotificacionesVendedor() {
+  return this.firestore.collection('notificacionesVendedor', ref =>
+    ref.orderBy('timestamp', 'desc')
+  ).valueChanges({ idField: 'id' });
+}
+async obtenerTransaccionPorOrden(ordenCompra: string): Promise<any | null> {
+  try {
+    // Try to get from transacciones collection
+    const snap = await this.firestore.collection('transacciones', ref =>
+      ref.where('ordenCompra', '==', ordenCompra)
+    ).get().toPromise();
+
+    if (!snap.empty) {
+      return snap.docs[0].data();
+    }
+
+    // If not found, try to get from user's transacciones subcollection (backup)
+    const user = await this.auth.currentUser;
+    if (user) {
+      const userSnap = await this.firestore.collection(`usuarios/${user.uid}/transacciones`, ref =>
+        ref.where('ordenCompra', '==', ordenCompra)
+      ).get().toPromise();
+
+      if (!userSnap.empty) {
+        return userSnap.docs[0].data();
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error al obtener transacción:', error);
+    return null;
+  }
+}
+async actualizarInventarioDespuesDeCompra(productos: any[]) {
+  try {
+    for (const item of productos) {
+      if (item.id) {
+        // Get current product data
+        const productoRef = this.firestore.doc(`productos/${item.id}`);
+        const productoSnap = await productoRef.get().toPromise();
+
+        if (productoSnap.exists) {
+          const productoData = productoSnap.data() as Producto;
+          const nuevoStock = Math.max(0, productoData.stock - (item.cantidad || 1));
+
+          // Update stock
+          await productoRef.update({
+            stock: nuevoStock
+          });
+
+          console.log(`Stock actualizado para ${item.nombre}: ${productoData.stock} -> ${nuevoStock}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error al actualizar inventario:', error);
+  }
+}
+
 
 }
+
+
+
+
+
+
+
 
 
 

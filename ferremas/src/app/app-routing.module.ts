@@ -46,6 +46,14 @@ const routes: Routes = [
     path: 'transbank-result',
     loadChildren: () => import('./pages/transbank-result/transbank-result.module').then( m => m.TransbankResultPageModule)
   },
+  {
+    path: 'bodeguero',
+    loadChildren: () => import('./pages/bodeguero/bodeguero.module').then( m => m.BodegueroPageModule)
+  },
+  {
+    path: 'contador',
+    loadChildren: () => import('./pages/contador/contador.module').then( m => m.ContadorPageModule)
+  },
 
 
 ];

@@ -29,10 +29,12 @@ export class CarroPage implements OnInit {
 
   ngOnInit() {
     this.actualizarCarrito();
+    this.checkPendingTransaction();
   }
 
   ionViewWillEnter() {
     this.actualizarCarrito();
+    this.checkPendingTransaction();
   }
 
   actualizarCarrito() {
@@ -173,4 +175,73 @@ export class CarroPage implements OnInit {
       loading.dismiss();
     }
   }
+async checkPendingTransaction() {
+  const pendingTransaction = localStorage.getItem('currentTransaction');
+  if (pendingTransaction) {
+    const loading = await this.utilsSvc.loading();
+    await loading.present();
+
+    try {
+      const transData = await this.firebaseSvc.obtenerTransaccionPorOrden(pendingTransaction);
+
+      if (transData && transData.estado === 'pagado') {
+        // Transaction was successful but we didn't finish the process
+        this.carritoService.clearCart();
+        this.router.navigate(['/cliente']);
+
+        this.utilsSvc.presentToast({
+          message: 'Tu pedido anterior fue procesado correctamente',
+          duration: 3000,
+          color: 'success'
+        });
+
+        localStorage.removeItem('currentTransaction');
+        localStorage.removeItem('carritoWebpay');
+        localStorage.removeItem('direccionWebpay');
+        localStorage.removeItem('retiroWebpay');
+      } else if (transData && transData.estado === 'iniciada') {
+        // Transaction is still pending
+        const alert = await this.alertController.create({
+          header: 'Transacción pendiente',
+          message: '¿Deseas continuar con el pago pendiente o cancelarlo?',
+          buttons: [
+            {
+              text: 'Cancelar',
+              role: 'cancel',
+              handler: () => {
+                localStorage.removeItem('currentTransaction');
+                localStorage.removeItem('carritoWebpay');
+                localStorage.removeItem('direccionWebpay');
+                localStorage.removeItem('retiroWebpay');
+              }
+            },
+            {
+              text: 'Continuar',
+              handler: () => {
+                // Reconstruct the cart and redirect to checkout
+                if (transData.productos && Array.isArray(transData.productos)) {
+                  // Clear current cart first
+                  this.carritoService.clearCart();
+
+                  // Add each product individually
+                  transData.productos.forEach((producto: Producto) => {
+                    this.carritoService.addItem(producto);
+                  });
+
+                  this.actualizarCarrito();
+                  this.finalizarCompra();
+                }
+              }
+            }
+          ]
+        });
+        await alert.present();
+      }
+    } catch (error) {
+      console.error('Error al verificar transacción pendiente:', error);
+    } finally {
+      loading.dismiss();
+    }
+  }
+}
 }
