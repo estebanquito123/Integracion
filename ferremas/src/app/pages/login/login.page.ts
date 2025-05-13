@@ -50,7 +50,7 @@ export class LoginPage implements OnInit, OnDestroy {
     try {
       const usuarioData = await this.authService.login(email, password);
       if (usuarioData) {
-  this.mostrarAlerta('Éxito', 'Usuario registrado exitosamente');
+  this.mostrarAlerta('Éxito', 'sesion iniciada exitosamente');
 
   let ruta = '/inicio'; // ruta por defecto
 

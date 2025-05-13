@@ -113,5 +113,10 @@ async registrarTokenPush(token: string, uid: string) {
   });
 }
 
+async actualizarUsuario(uid: string, data: Partial<Usuario>): Promise<void> {
+  return this.firestore.collection('usuarios').doc(uid).update(data);
+}
+
+
 
 }

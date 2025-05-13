@@ -1,3 +1,4 @@
+//logout.page.ts
 import { Router } from '@angular/router';
 import { Component, inject, OnInit } from '@angular/core';
 import { AuthService } from 'src/app/servicios/auth.service';

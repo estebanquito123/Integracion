@@ -54,6 +54,10 @@ const routes: Routes = [
     path: 'contador',
     loadChildren: () => import('./pages/contador/contador.module').then( m => m.ContadorPageModule)
   },
+  {
+    path: 'crud-usuarios',
+    loadChildren: () => import('./pages/crud-usuarios/crud-usuarios.module').then( m => m.CrudUsuariosPageModule)
+  },
 
 
 ];

@@ -10,5 +10,12 @@ export const environment = {
     appId: "1:447290215984:web:6ebd14885dfb1fef2727f5",
     measurementId: "G-GNF7MK90Y7"
   },
+  backendApiUrl: 'http://localhost:3000/api',
+  transbankConfig: {
+    // Para ambiente de integración/desarrollo
+    commerceCode: '597055555532',  // Código de comercio de prueba
+    apiKey: '579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C',  // Clave secreta de prueba
+    environment: 'TEST'  // TEST o LIVE
+  }
 
 };

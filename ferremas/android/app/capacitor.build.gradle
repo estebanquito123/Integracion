@@ -7,7 +7,7 @@ android {
   }
 }
 
-apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
+
 dependencies {
     implementation project(':capacitor-firebase-messaging')
     implementation project(':capacitor-app')
@@ -34,7 +34,7 @@ dependencies {
     implementation "com.google.code.gson:gson:2.11.0"
     implementation "io.grpc:grpc-okhttp:1.68.0"
 }
-apply from: "../../node_modules/cordova-plugin-firebasex/src/android/build.gradle"
+
 
 if (hasProperty('postBuildExtras')) {
   postBuildExtras()

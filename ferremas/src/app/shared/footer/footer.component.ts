@@ -29,6 +29,12 @@ export class FooterComponent implements OnInit {
     } else if (this.usuario?.rol === 'cliente') {
       this.router.navigate(['/cliente']);
     }
+    else if (this.usuario?.rol === 'bodeguero') {
+      this.router.navigate(['/bodeguero']);
+    }
+    else if (this.usuario?.rol === 'vendedor') {
+      this.router.navigate(['/vendedor']);
+    }
   }
 
   logout() {

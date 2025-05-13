@@ -1,0 +1,26 @@
+<app-header></app-header>
+<ion-content>
+  <ion-list>
+    <ion-item *ngFor="let usuario of usuarios">
+      <ion-label>
+        <h2>{{ usuario.nombreCompleto }}</h2>
+        <p>{{ usuario.email }} - Rol: {{ usuario.rol }}</p>
+      </ion-label>
+      <ion-button fill="clear" color="primary" (click)="editarUsuario(usuario)">
+        <ion-icon name="create-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+      <ion-button fill="clear" color="danger" (click)="eliminarUsuario(usuario.uid)">
+        <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-item>
+  </ion-list>
+
+  <!-- Botón para agregar nuevo usuario -->
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button (click)="agregarUsuario()">
+      <ion-icon name="person-add-outline"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+</ion-content>
+<app-footer></app-footer>
+

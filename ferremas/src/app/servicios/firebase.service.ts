@@ -161,6 +161,18 @@ async actualizarInventarioDespuesDeCompra(productos: any[]) {
   }
 }
 
+// En firebase.service.ts
+getUsuariosPorRol(roles: string[]) {
+  return this.firestore.collection('usuarios', ref =>
+    ref.where('rol', 'in', roles)
+  ).valueChanges({ idField: 'uid' });
+}
+
+eliminarUsuario(uid: string) {
+  return this.firestore.collection('usuarios').doc(uid).delete();
+}
+
+
 
 }
 

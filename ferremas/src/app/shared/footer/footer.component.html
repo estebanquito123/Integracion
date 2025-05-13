@@ -12,10 +12,13 @@
 
     <!-- Si la sesión no está iniciada, muestra Login y Crear Cuenta -->
     <p *ngIf="!usuario">
-      <a [routerLink]="['/']">Login</a>
+      <a [routerLink]="['/']">Iniciar Sesion</a>
     </p>
     <p *ngIf="!usuario">
       <a [routerLink]="['/registrar']">Crear Cuenta</a>
     </p>
+    <p *ngIf="usuario?.rol === 'administrador'">
+    <a [routerLink]="['/crud-usuarios']">Gestionar Usuarios</a>
+  </p>
   </div>
 

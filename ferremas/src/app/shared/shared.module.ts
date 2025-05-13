@@ -7,6 +7,7 @@ import { FooterComponent } from './footer/footer.component';
 import { HeaderComponent } from './header/header.component';
 import { AddUpdateProductComponent } from './add-update-product/add-update-product.component';
 import { ReactiveFormsModule } from '@angular/forms';
+import { AddUpdateUserComponent } from './add-update-user/add-update-user.component';
 
 
 
@@ -16,7 +17,8 @@ import { ReactiveFormsModule } from '@angular/forms';
     FooterComponent,
     HeaderComponent,
     AddUpdateProductComponent,
-    MetodoRetiroModal
+    MetodoRetiroModal,
+    AddUpdateUserComponent
   ],
   imports: [
     CommonModule,
@@ -28,7 +30,8 @@ import { ReactiveFormsModule } from '@angular/forms';
     FooterComponent,
     HeaderComponent,
     AddUpdateProductComponent,
-    MetodoRetiroModal
+    MetodoRetiroModal,
+    AddUpdateUserComponent
 
   ]
 })

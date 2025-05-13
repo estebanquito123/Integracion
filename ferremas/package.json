@@ -35,7 +35,6 @@
     "@ionic/angular": "^8.0.0",
     "@ionic/pwa-elements": "^3.3.0",
     "body-parser": "^2.2.0",
-    "cordova-plugin-firebasex": "^18.0.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
