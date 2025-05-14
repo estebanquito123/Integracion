@@ -181,4 +181,50 @@ export class VendedorPage implements OnInit {
 
     await alert.present();
   }
+
+async notificarClientePedidoListo(pedido: Pedido) {
+  const alert = await this.alertCtrl.create({
+    header: 'Notificar al Cliente',
+    message: '¿Deseas enviar una notificación al cliente informando que su pedido está listo para ser entregado?',
+    buttons: [
+      {
+        text: 'Cancelar',
+        role: 'cancel'
+      },
+      {
+        text: 'Enviar Notificación',
+        handler: async () => {
+          const loading = await this.utilsSvc.loading();
+          await loading.present();
+
+          try {
+            // Intentar enviar la notificación al cliente
+            const result = await this.firebaseSvc.notificarClientePedidoListo(pedido);
+
+            if (result) {
+              this.utilsSvc.presentToast({
+                message: 'Notificación enviada al cliente correctamente',
+                duration: 2000,
+                color: 'success'
+              });
+            } else {
+              throw new Error('No se pudo enviar la notificación');
+            }
+          } catch (error) {
+            console.error('Error al notificar al cliente:', error);
+            this.utilsSvc.presentToast({
+              message: `Error al enviar la notificación: ${error.message}`,
+              duration: 3000,
+              color: 'danger'
+            });
+          } finally {
+            loading.dismiss();
+          }
+        }
+      }
+    ]
+  });
+
+  await alert.present();
+}
 }

@@ -20,5 +20,8 @@
     <p *ngIf="usuario?.rol === 'administrador'">
     <a [routerLink]="['/crud-usuarios']">Gestionar Usuarios</a>
   </p>
+  <p *ngIf="usuario?.rol === 'cliente'">
+    <a [routerLink]="['/notificaciones']">Notificaciones</a>
+  </p>
   </div>
 

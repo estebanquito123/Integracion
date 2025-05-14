@@ -1,5 +1,6 @@
-import { UtilsService } from 'src/app/servicios/utils.service';
+
 //registrar.page.ts
+import { UtilsService } from 'src/app/servicios/utils.service';
 import { Component, inject, OnInit } from '@angular/core';
 import { AuthService } from 'src/app/servicios/auth.service';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';

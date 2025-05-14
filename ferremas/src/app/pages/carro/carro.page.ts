@@ -141,10 +141,13 @@ export class CarroPage implements OnInit {
           estadoPago: 'pendiente',
           metodoPago: 'transferencia',
           direccion,
-          retiro
+          retiro,
+
         };
         await this.firebaseSvc.guardarCompra(compra);
       }
+      const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+      const clienteId = usuario.uid;
 
       await this.firebaseSvc.notificarPedidoAVendedor({
         productos: this.productos,
@@ -152,7 +155,8 @@ export class CarroPage implements OnInit {
         metodoPago: 'transferencia',
         direccion,
         retiro,
-        fecha: new Date().toISOString()
+        fecha: new Date().toISOString(),
+        clienteId
       });
 
       this.carritoService.clearCart();

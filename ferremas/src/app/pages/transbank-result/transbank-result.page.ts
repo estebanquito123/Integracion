@@ -107,6 +107,10 @@ export class TransbankResultPage implements OnInit {
     return;
   }
 
+  // Obtener el ID del usuario actual
+  const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const clienteId = usuario.uid;
+
   // Register purchase in user's collection
   try {
     for (const producto of productos) {
@@ -131,10 +135,19 @@ export class TransbankResultPage implements OnInit {
       direccion,
       retiro,
       fecha: new Date().toISOString(),
-      estadoPago: 'pagado'
+      estadoPago: 'pagado',
+      clienteId // Añadimos el ID del cliente a los datos del pedido
     };
 
-    await this.firebaseSvc.notificarPedidoAVendedor(pedidoData);
+    // Guardar el pedido y obtener el ID del documento
+    const pedidoRef = await this.firebaseSvc.notificarPedidoAVendedor(pedidoData);
+
+    // Si el pedido se guardó correctamente y tenemos su ID
+    if (pedidoRef && pedidoRef.id) {
+      console.log('Pedido guardado con ID:', pedidoRef.id);
+      console.log('Pedido guardado:', pedidoRef);
+    }
+
     console.log('Pedido guardado correctamente en pedidosPendientes');
 
     // Send push notification to seller

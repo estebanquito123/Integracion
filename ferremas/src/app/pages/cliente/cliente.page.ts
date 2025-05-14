@@ -20,6 +20,7 @@ export class ClientePage implements OnInit {
   toastController = inject(ToastController); // Corregido: inyección correcta del servicio
 
   productos: Producto[] = [];
+  notificacionesNoLeidas: number = 0;
 
   ngOnInit() {
     this.getProductos();

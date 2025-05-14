@@ -1,3 +1,4 @@
+//firebase.service.ts
 import { Injectable, inject } from '@angular/core';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { Producto, Usuario, EstadoPedido, Pedido } from '../models/bd.models';
@@ -98,7 +99,7 @@ export class FirebaseService {
       if (bodeguero.pushToken) {
         const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
 
-        await fetch('https://tu-api.com/api/notificar-bodeguero', {
+        await fetch('https://localhost:3000/api/notificar-bodeguero', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -126,7 +127,7 @@ export class FirebaseService {
       const vendedor = vendedorSnap.data() as Usuario;
 
       if (vendedor && vendedor.pushToken) {
-        await fetch('https://tu-api.com/api/notificar-vendedor', {
+        await fetch('https://localhost:3000/api/notificar-vendedor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -149,7 +150,7 @@ export class FirebaseService {
       for (const doc of vendedoresSnap.docs) {
         const vendedor = doc.data() as Usuario;
         if (vendedor.pushToken) {
-          await fetch('https://tu-api.com/api/notificar-vendedor', {
+          await fetch('https://localhost:3000/api/notificar-vendedor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -166,57 +167,6 @@ export class FirebaseService {
       }
     }
   }
-
-  // Método para notificar al cliente sobre el estado de su pedido
-  /*async notificarCambioEstadoAlCliente(pedido: Pedido) {
-    // Aquí se implementaría la lógica para enviar notificaciones al cliente
-    // Esta función podría ser llamada desde los métodos que actualizan el estado del pedido
-    // Por ejemplo, cuando un pedido es aceptado o rechazado
-
-    // Ejemplo de implementación (requiere que guardemos el uid del cliente en el pedido)
-    if (pedido.clienteId) {
-      const clienteSnap = await this.firestore.collection('usuarios')
-        .doc(pedido.clienteId).get().toPromise();
-
-      const cliente = clienteSnap.data() as Usuario;
-
-      if (cliente && cliente.pushToken) {
-        let mensaje = '';
-
-        switch (pedido.estadoPedido) {
-          case EstadoPedido.ACEPTADO:
-            mensaje = `Tu pedido #${pedido.ordenCompra} ha sido aceptado y está siendo procesado`;
-            break;
-          case EstadoPedido.RECHAZADO:
-            mensaje = `Tu pedido #${pedido.ordenCompra} ha sido rechazado. Por favor, contacta con atención al cliente`;
-            break;
-          case EstadoPedido.PREPARADO:
-            mensaje = `Tu pedido #${pedido.ordenCompra} está listo para ser recogido/enviado`;
-            break;
-          case EstadoPedido.ENTREGADO:
-            mensaje = `Tu pedido #${pedido.ordenCompra} ha sido marcado como entregado. ¡Gracias por tu compra!`;
-            break;
-        }
-
-        if (mensaje) {
-          await fetch('https://tu-api.com/api/notificar-cliente', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              token: cliente.pushToken,
-              title: 'Actualización de tu pedido',
-              body: mensaje,
-              data: {
-                pedidoId: pedido.id,
-                ordenCompra: pedido.ordenCompra,
-                estado: pedido.estadoPedido
-              }
-            })
-          });
-        }
-      }
-    }
-  }*/
 
   getPedidosPendientes() {
     return this.firestore.collection('pedidosPendientes').valueChanges({ idField: 'id' });
@@ -249,7 +199,7 @@ export class FirebaseService {
         const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
         const tipoEntrega = pedido.retiro === 'domicilio' ? 'Despacho a domicilio' : 'Retiro en tienda';
 
-        await fetch('https://tu-api.com/api/notificar-vendedor', {
+        await fetch('https://localhost:3000/api/notificar-vendedor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -340,4 +290,103 @@ export class FirebaseService {
   eliminarUsuario(uid: string) {
     return this.firestore.collection('usuarios').doc(uid).delete();
   }
+
+// Método para notificar al cliente que su pedido está listo para despacho
+async notificarClientePedidoListo(pedido: Pedido) {
+  try {
+    // Si el pedido no tiene clienteId, intentamos encontrar al cliente por otros medios
+    if (!pedido.clienteId) {
+      // Buscar en las compras para identificar al cliente que realizó esta orden
+      const comprasRef = this.firestore.collection('usuarios').get().toPromise();
+      const usuarios = (await comprasRef).docs;
+
+      let clienteEncontrado = null;
+
+      // Revisar las colecciones de compras de cada usuario
+      for (const usuario of usuarios) {
+        const compras = await this.firestore.collection(`usuarios/${usuario.id}/compras`, ref =>
+          ref.where('ordenCompra', '==', pedido.ordenCompra)
+        ).get().toPromise();
+
+        if (!compras.empty) {
+          clienteEncontrado = usuario.id;
+          // Actualizar el pedido con el ID del cliente para futuras referencias
+          await this.registrarClienteEnPedido(pedido.id, clienteEncontrado);
+          break;
+        }
+      }
+
+      if (clienteEncontrado) {
+        pedido.clienteId = clienteEncontrado;
+      } else {
+        console.warn('No se pudo identificar al cliente para la orden:', pedido.ordenCompra);
+      }
+    }
+
+    // Crear una notificación en la colección de notificaciones del cliente
+    await this.firestore.collection('notificacionesCliente').add({
+      titulo: '🎉 Tu pedido está listo',
+      mensaje: `Tu pedido con orden ${pedido.ordenCompra} está listo para ser entregado o retirado.`,
+      leido: false,
+      fecha: new Date().toISOString(),
+      pedidoId: pedido.id,
+      ordenCompra: pedido.ordenCompra,
+      clienteId: pedido.clienteId || 'desconocido',
+      tipo: 'pedido_listo'
+    });
+
+    // Si el cliente tiene token de notificación push, enviar notificación
+    if (pedido.clienteId) {
+      const clienteSnap = await this.firestore.collection('usuarios')
+        .doc(pedido.clienteId).get().toPromise();
+
+      const cliente = clienteSnap.data() as Usuario;
+
+      if (cliente && cliente.pushToken) {
+        await fetch('https://localhost:3000/api/notificar-cliente', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: cliente.pushToken,
+            title: '🎉 Tu pedido está listo',
+            body: `Tu pedido con orden ${pedido.ordenCompra} está listo para ser entregado o retirado.`,
+            data: {
+              pedidoId: pedido.id,
+              ordenCompra: pedido.ordenCompra,
+              tipo: 'pedido_listo'
+            }
+          })
+        });
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error al notificar al cliente:', error);
+    return false;
+  }
 }
+
+// Método para obtener notificaciones de un cliente
+getNotificacionesCliente(clienteId: string) {
+  return this.firestore.collection('notificacionesCliente', ref =>
+    ref.where('clienteId', '==', clienteId)
+    .orderBy('fecha', 'desc')
+  ).valueChanges({ idField: 'id' });
+}
+
+// Método para marcar una notificación como leída
+marcarNotificacionComoLeida(notificacionId: string) {
+  return this.firestore.collection('notificacionesCliente').doc(notificacionId).update({
+    leido: true
+  });
+}
+
+// Método para actualizar el modelo de pedido con el ID del cliente al crear un pedido
+async registrarClienteEnPedido(pedidoId: string, clienteId: string) {
+  return this.firestore.collection('pedidosPendientes').doc(pedidoId).update({
+    clienteId: clienteId
+  });
+}
+}
+

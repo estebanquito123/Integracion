@@ -1,5 +1,5 @@
 
-//app.js
+//app.js(backend)
 const admin = require('firebase-admin');
 const serviceAccount = require('./src/app/serviceAccountKey/ferremas2-19f3f-firebase-adminsdk-fbsvc-f8b1b45c33.json');
 
@@ -88,5 +88,45 @@ app.post('/api/notificar-vendedor', async (req, res) => {
   } catch (error) {
     console.error('Error enviando push:', error);
     res.status(500).json({ error: 'Fallo al enviar notificación' });
+  }
+});
+app.post('/api/notificar-cliente', async (req, res) => {
+  const { token, title, body, data } = req.body;
+
+  const message = {
+    token,
+    notification: {
+      title,
+      body
+    },
+    data
+  };
+
+  try {
+    await admin.messaging().send(message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error enviando push al cliente:', error);
+    res.status(500).json({ error: 'Fallo al enviar notificación al cliente' });
+  }
+});
+app.post('/api/notificar-bodeguero', async (req, res) => {
+  const { token, title, body, data } = req.body;
+
+  const message = {
+    token,
+    notification: {
+      title,
+      body
+    },
+    data
+  };
+
+  try {
+    await admin.messaging().send(message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error enviando push al cliente:', error);
+    res.status(500).json({ error: 'Fallo al enviar notificación al cliente' });
   }
 });

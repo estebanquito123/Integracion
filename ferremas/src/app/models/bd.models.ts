@@ -51,4 +51,22 @@ export interface Pedido {
   estadoPedido: EstadoPedido;
   vendedorId?: string;
   bodegueroId?: string;
+  clienteId?: string;
+  usuarioId?: string;
 }
+
+// Interfaz para transacciones
+export interface Transaccion {
+  id?: string;
+  ordenCompra: string;
+  monto: number;
+  productos: Producto[];
+  retiro?: string;
+  direccion?: string;
+  fechaInicio: Date;
+  usuarioId: string;
+  estado: 'iniciada' | 'pagado' | 'fallida' | 'error';
+  respuesta?: any;
+}
+
+
