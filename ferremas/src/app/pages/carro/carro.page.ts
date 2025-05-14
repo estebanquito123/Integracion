@@ -1,7 +1,7 @@
 // ✅ carro.page.ts
 import { Component, OnInit, inject } from '@angular/core';
 import { CarritoService } from 'src/app/servicios/carrito.service';
-import { Producto } from 'src/app/models/bd.models';
+import { Producto, EstadoPago, EstadoPedido } from 'src/app/models/bd.models';
 import { UtilsService } from 'src/app/servicios/utils.service';
 import { Router } from '@angular/router';
 import { FirebaseService } from 'src/app/servicios/firebase.service';
@@ -125,60 +125,94 @@ export class CarroPage implements OnInit {
   }
 
   async pagarPorTransferencia(retiro: string, direccion: string) {
-    const loading = await this.utilsSvc.loading();
-    await loading.present();
+  const loading = await this.utilsSvc.loading();
+  await loading.present();
 
-    try {
-      const ordenCompra = this.transbankService.generarOrdenCompra();
+  try {
+    const ordenCompra = this.transbankService.generarOrdenCompra();
 
-      for (const producto of this.productos) {
-        const compra = {
-          productoId: producto.id,
-          nombre: producto.nombre,
-          precio: producto.precio,
-          fecha: new Date().toISOString(),
-          ordenCompra,
-          estadoPago: 'pendiente',
-          metodoPago: 'transferencia',
-          direccion,
-          retiro,
+    // Calcular el monto total del pedido
+    const montoTotal = this.carritoService.getTotal();
 
-        };
-        await this.firebaseSvc.guardarCompra(compra);
-      }
-      const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
-      const clienteId = usuario.uid;
+    // Crear objeto de pedido completo primero
+    const pedidoData = {
+      productos: this.productos,
+      ordenCompra,
+      metodoPago: 'transferencia',
+      direccion,
+      retiro,
+      fecha: new Date().toISOString(),
+      estadoPago: EstadoPago.PENDIENTE, // Usar el enum definido
+      estadoPedido: EstadoPedido.PENDIENTE,
+      montoTotal // Agregar monto total para el contador
+    };
 
-      await this.firebaseSvc.notificarPedidoAVendedor({
-        productos: this.productos,
+    // Guardar el pedido completo
+    const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const clienteId = usuario.uid;
+
+    // Agregar el ID del cliente al pedido
+    pedidoData.clienteId = clienteId;
+
+    // Guardar el pedido pendiente para que lo procese el contador
+    const pedidoRef = await this.firebaseSvc.notificarPedidoAVendedor(pedidoData);
+
+    // Guardar la compra en el historial del cliente
+    for (const producto of this.productos) {
+      const compra = {
+        productoId: producto.id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+        cantidad: producto.cantidad || 1,
+        fecha: new Date().toISOString(),
         ordenCompra,
+        estadoPago: EstadoPago.PENDIENTE,
         metodoPago: 'transferencia',
         direccion,
         retiro,
-        fecha: new Date().toISOString(),
-        clienteId
-      });
-
-      this.carritoService.clearCart();
-      this.router.navigate(['/cliente']);
-
-      this.utilsSvc.presentToast({
-        message: 'Pedido registrado. Esperando transferencia.',
-        duration: 3000,
-        color: 'success'
-      });
-
-    } catch (error) {
-      console.error(error);
-      this.utilsSvc.presentToast({
-        message: 'Error al registrar pedido',
-        duration: 2000,
-        color: 'danger'
-      });
-    } finally {
-      loading.dismiss();
+      };
+      await this.firebaseSvc.guardarCompra(compra);
     }
+
+    this.carritoService.clearCart();
+    this.router.navigate(['/cliente']);
+
+    // Mostrar instrucciones para realizar la transferencia
+    const alert = await this.alertController.create({
+      header: 'Instrucciones de Pago',
+      subHeader: 'Realiza una transferencia con los siguientes datos:',
+      message: `
+        <p><strong>Banco:</strong> Banco Estado</p>
+        <p><strong>Cuenta:</strong> Cuenta Corriente</p>
+        <p><strong>Número:</strong> 123456789</p>
+        <p><strong>RUT:</strong> 12.345.678-9</p>
+        <p><strong>Nombre:</strong> Tienda Online SpA</p>
+        <p><strong>Email:</strong> pagos@tiendaonline.cl</p>
+        <p><strong>Monto:</strong> $${montoTotal}</p>
+        <p><strong>Orden de Compra:</strong> ${ordenCompra}</p>
+        <p>El contador confirmará tu pago a la brevedad.</p>
+      `,
+      buttons: ['Entendido']
+    });
+    await alert.present();
+
+    this.utilsSvc.presentToast({
+      message: 'Pedido registrado. Esperando confirmación de transferencia.',
+      duration: 3000,
+      color: 'success'
+    });
+
+  } catch (error) {
+    console.error(error);
+    this.utilsSvc.presentToast({
+      message: 'Error al registrar pedido',
+      duration: 2000,
+      color: 'danger'
+    });
+  } finally {
+    loading.dismiss();
   }
+}
 async checkPendingTransaction() {
   const pendingTransaction = localStorage.getItem('currentTransaction');
   if (pendingTransaction) {
@@ -248,4 +282,6 @@ async checkPendingTransaction() {
     }
   }
 }
+
+
 }

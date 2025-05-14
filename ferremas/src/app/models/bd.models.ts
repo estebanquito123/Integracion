@@ -1,10 +1,9 @@
-// bd.models.ts (actualizado)
 export interface Usuario {
   uid: string;
   nombreCompleto: string;
   email: string
   password: string;
-  rol: string;
+  rol: string; // cliente, vendedor, bodeguero, contador
   pushToken?: string;
 }
 
@@ -38,6 +37,14 @@ export enum EstadoPedido {
   ENTREGADO = 'entregado'
 }
 
+// Enum para manejar el estado del pago
+export enum EstadoPago {
+  PENDIENTE = 'pendiente',
+  PAGADO = 'pagado',
+  RECHAZADO = 'rechazado',
+  REEMBOLSADO = 'reembolsado'
+}
+
 // Interfaz para los pedidos
 export interface Pedido {
   id?: string;
@@ -47,12 +54,15 @@ export interface Pedido {
   direccion: string;
   retiro: string;
   fecha: string;
-  estadoPago: string;
+  estadoPago: EstadoPago | string;
   estadoPedido: EstadoPedido;
   vendedorId?: string;
   bodegueroId?: string;
   clienteId?: string;
   usuarioId?: string;
+  montoTotal?: number; // Agregado para facilitar cálculos de contabilidad
+  fechaEntrega?: string; // Fecha cuando se entregó el pedido
+  verificadoPorContador?: boolean; // Flag para que el contador sepa qué pedidos ya revisó
 }
 
 // Interfaz para transacciones
@@ -69,4 +79,19 @@ export interface Transaccion {
   respuesta?: any;
 }
 
-
+// Nueva interfaz para el reporte financiero (para el contador)
+export interface ReporteFinanciero {
+  id?: string;
+  periodo: string; // ej: "Mayo 2025"
+  fechaInicio: string;
+  fechaFin: string;
+  totalVentas: number;
+  totalPedidos: number;
+  pedidosEntregados: number;
+  ventasPorMetodoPago: {
+    webpay: number;
+    transferencia: number;
+  };
+  fechaGeneracion: string;
+  generadoPor: string; // UID del contador
+}

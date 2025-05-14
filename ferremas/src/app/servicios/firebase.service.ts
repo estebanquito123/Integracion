@@ -1,11 +1,12 @@
 //firebase.service.ts
 import { Injectable, inject } from '@angular/core';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
-import { Producto, Usuario, EstadoPedido, Pedido } from '../models/bd.models';
+import { Producto, Usuario, EstadoPedido, Pedido, EstadoPago, ReporteFinanciero} from '../models/bd.models';
 import { getAuth, updateProfile, createUserWithEmailAndPassword } from 'firebase/auth';
 import { addDoc, collection, getFirestore, collectionData, query, doc, deleteDoc, updateDoc, where } from '@angular/fire/firestore';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { map } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -61,6 +62,13 @@ export class FirebaseService {
     return this.firestore.collection<Pedido>('pedidosPendientes').valueChanges({ idField: 'id' });
   }
 
+  getPedidosPorTransferenciaPendientes(): Observable<Pedido[]> {
+    return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
+      ref.where('metodoPago', '==', 'transferencia')
+         .where('estadoPago', '==', EstadoPago.PENDIENTE)
+    ).valueChanges({ idField: 'id' });
+  }
+
   // Método para obtener pedidos específicos para el bodeguero
   getPedidosBodega() {
     return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
@@ -71,6 +79,20 @@ export class FirebaseService {
       ])
     ).valueChanges({ idField: 'id' });
   }
+
+  getPedidosEntregados(): Observable<Pedido[]> {
+    return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
+      ref.where('estadoPedido', '==', EstadoPedido.ENTREGADO)
+    ).valueChanges({ idField: 'id' });
+  }
+
+async actualizarEstadoPago(pedidoId: string, nuevoEstado: EstadoPago): Promise<void> {
+    return this.firestore.collection('pedidosPendientes').doc(pedidoId).update({
+      estadoPago: nuevoEstado
+    });
+  }
+
+
 
   // Método para actualizar el estado de un pedido
   async actualizarEstadoPedido(pedidoId: string, nuevoEstado: EstadoPedido) {
@@ -115,6 +137,91 @@ export class FirebaseService {
         });
       }
     }
+  }
+
+  async marcarPedidoVerificado(pedidoId: string, verificado: boolean = true): Promise<void> {
+    return this.firestore.collection('pedidosPendientes').doc(pedidoId).update({
+      verificadoPorContador: verificado
+    });
+  }
+
+  getReportesFinancieros(): Observable<ReporteFinanciero[]> {
+    return this.firestore.collection<ReporteFinanciero>('reportesFinancieros', ref =>
+      ref.orderBy('fechaGeneracion', 'desc')
+    ).valueChanges({ idField: 'id' });
+  }
+
+  // Generar un nuevo reporte financiero
+  async generarReporteFinanciero(reporte: ReporteFinanciero): Promise<any> {
+    return this.firestore.collection('reportesFinancieros').add(reporte);
+  }
+
+  // Calcular el monto total de un pedido
+  calcularMontoTotalPedido(pedido: Pedido): number {
+    if (!pedido.productos || !Array.isArray(pedido.productos)) {
+      return 0;
+    }
+
+    return pedido.productos.reduce((total, producto) => {
+      return total + (producto.precio || 0);
+    }, 0);
+  }
+
+  // Actualizar monto total de un pedido (si no fue calculado previamente)
+  async actualizarMontoTotalPedido(pedidoId: string, montoTotal: number): Promise<void> {
+    return this.firestore.collection('pedidosPendientes').doc(pedidoId).update({
+      montoTotal: montoTotal
+    });
+  }
+
+  // Método para obtener pedidos por rango de fechas
+  getPedidosPorRangoFechasEntrega(fechaInicio: string, fechaFin: string): Observable<Pedido[]> {
+    return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
+      ref.where('estadoPedido', '==', EstadoPedido.ENTREGADO)
+         .where('fechaEntrega', '>=', fechaInicio)
+         .where('fechaEntrega', '<=', fechaFin)
+    ).valueChanges({ idField: 'id' });
+  }
+
+  // Notificar al vendedor de un pago confirmado por el contador
+  async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
+    // Obtener vendedores
+    const vendedoresSnap = await this.firestore.collection('usuarios', ref =>
+      ref.where('rol', '==', 'vendedor')
+    ).get().toPromise();
+
+    for (const doc of vendedoresSnap.docs) {
+      const vendedor = doc.data() as Usuario;
+      if (vendedor.pushToken) {
+        const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
+
+        await fetch('https://localhost:3000/api/notificar-vendedor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: vendedor.pushToken,
+            title: '💰 Pago Confirmado',
+            body: `Orden ${pedido.ordenCompra}: Pago por transferencia verificado por contabilidad`,
+            data: {
+              ordenCompra: pedido.ordenCompra,
+              metodoPago: pedido.metodoPago,
+              productos: JSON.stringify(pedido.productos)
+            }
+          })
+        });
+      }
+    }
+
+    // Registrar notificación en la colección
+    await this.firestore.collection('notificacionesVendedor').add({
+      titulo: '💰 Pago Confirmado',
+      mensaje: `Orden ${pedido.ordenCompra}: Pago por transferencia verificado por contabilidad`,
+      fecha: new Date().toISOString(),
+      leido: false,
+      pedidoId: pedido.id,
+      ordenCompra: pedido.ordenCompra,
+      tipo: 'pago_confirmado'
+    });
   }
 
   // Método para notificar al vendedor cuando un pedido está preparado
@@ -388,5 +495,7 @@ async registrarClienteEnPedido(pedidoId: string, clienteId: string) {
     clienteId: clienteId
   });
 }
+
+
 }
 
