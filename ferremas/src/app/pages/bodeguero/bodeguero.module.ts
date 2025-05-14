@@ -7,13 +7,15 @@ import { IonicModule } from '@ionic/angular';
 import { BodegueroPageRoutingModule } from './bodeguero-routing.module';
 
 import { BodegueroPage } from './bodeguero.page';
+import { SharedModule } from 'src/app/shared/shared.module';
 
 @NgModule({
   imports: [
     CommonModule,
     FormsModule,
     IonicModule,
-    BodegueroPageRoutingModule
+    BodegueroPageRoutingModule,
+    SharedModule
   ],
   declarations: [BodegueroPage]
 })
