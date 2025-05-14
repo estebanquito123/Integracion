@@ -28,7 +28,7 @@ export interface DetalleCompra {
   metodoPago: 'webpay' | 'transferencia';
 }
 
-// Nuevo enum para manejar el estado del pedido
+// Enum para manejar el estado del pedido
 export enum EstadoPedido {
   PENDIENTE = 'pendiente',
   ACEPTADO = 'aceptado',

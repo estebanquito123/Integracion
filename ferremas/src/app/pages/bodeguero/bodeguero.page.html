@@ -1,4 +1,3 @@
-
 <!-- bodeguero.page.html -->
 <ion-header>
   <ion-toolbar>
@@ -10,6 +9,9 @@
   <ion-segment [(ngModel)]="segmento" (ionChange)="cambiarSegmento()">
     <ion-segment-button value="pendientes">
       <ion-label>Por Preparar</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="enPreparacion">
+      <ion-label>En Preparación</ion-label>
     </ion-segment-button>
     <ion-segment-button value="preparados">
       <ion-label>Preparados</ion-label>
@@ -49,12 +51,45 @@
   </div>
 
   <!-- Pedidos en preparación -->
+  <div *ngIf="segmento === 'enPreparacion'">
+    <ion-list *ngIf="pedidosEnPreparacion.length > 0; else sinEnPreparacion">
+      <ion-item *ngFor="let pedido of pedidosEnPreparacion">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Estado:</strong> En preparación</p>
+          <p><strong>Entrega:</strong> {{ pedido.retiro }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <div *ngIf="pedido.productos?.length">
+            <p><strong>Productos:</strong></p>
+            <ul>
+              <li *ngFor="let p of pedido.productos">
+                {{ p.nombre }}
+              </li>
+            </ul>
+          </div>
+        </ion-label>
+        <ion-buttons slot="end">
+          <ion-button color="success" (click)="marcarComoPedidoListo(pedido)">
+            <ion-icon name="checkmark-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinEnPreparacion>
+      <ion-text color="medium" class="ion-text-center">
+        <p>No hay pedidos en preparación.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+
+  <!-- Pedidos preparados -->
   <div *ngIf="segmento === 'preparados'">
     <ion-list *ngIf="pedidosPreparados.length > 0; else sinPreparados">
       <ion-item *ngFor="let pedido of pedidosPreparados">
         <ion-label>
           <h2>Orden: {{ pedido.ordenCompra }}</h2>
-          <p><strong>Estado:</strong> {{ obtenerEstadoTexto(pedido.estadoPedido) }}</p>
+          <p><strong>Estado:</strong> Listo para entrega</p>
           <p><strong>Entrega:</strong> {{ pedido.retiro }}</p>
           <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
           <div *ngIf="pedido.productos?.length">

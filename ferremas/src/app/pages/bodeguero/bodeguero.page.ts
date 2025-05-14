@@ -17,6 +17,7 @@ export class BodegueroPage implements OnInit {
 
   segmento: string = 'pendientes';
   pedidosPorPreparar: Pedido[] = [];
+  pedidosEnPreparacion: Pedido[] = [];
   pedidosPreparados: Pedido[] = [];
 
   ngOnInit() {
@@ -31,10 +32,8 @@ export class BodegueroPage implements OnInit {
     this.firebaseSvc.getPedidosBodega().subscribe(data => {
       // Filtrar los pedidos según su estado
       this.pedidosPorPreparar = data.filter(p => p.estadoPedido === EstadoPedido.ACEPTADO);
-      this.pedidosPreparados = data.filter(p =>
-        p.estadoPedido === EstadoPedido.EN_PREPARACION ||
-        p.estadoPedido === EstadoPedido.PREPARADO
-      );
+      this.pedidosEnPreparacion = data.filter(p => p.estadoPedido === EstadoPedido.EN_PREPARACION);
+      this.pedidosPreparados = data.filter(p => p.estadoPedido === EstadoPedido.PREPARADO);
     });
   }
 
@@ -43,76 +42,45 @@ export class BodegueroPage implements OnInit {
     // No necesita implementación adicional
   }
 
-  obtenerEstadoTexto(estado: EstadoPedido): string {
-    switch (estado) {
-      case EstadoPedido.EN_PREPARACION:
-        return 'En preparación';
-      case EstadoPedido.PREPARADO:
-        return 'Listo para entrega';
-      default:
-        return 'Desconocido';
+  async iniciarPreparacion(pedido: Pedido) {
+    const loading = await this.utilsSvc.loading();
+    await loading.present();
+
+    try {
+      // Actualizar el estado del pedido a EN_PREPARACION
+      await this.firebaseSvc.actualizarEstadoPedido(
+        pedido.id,
+        EstadoPedido.EN_PREPARACION
+      );
+
+      this.utilsSvc.presentToast({
+        message: 'Pedido marcado como "En preparación"',
+        duration: 2000,
+        color: 'success'
+      });
+    } catch (error) {
+      console.error('Error al actualizar estado del pedido:', error);
+      this.utilsSvc.presentToast({
+        message: 'Error al procesar el pedido',
+        duration: 2000,
+        color: 'danger'
+      });
+    } finally {
+      loading.dismiss();
     }
   }
 
-  async iniciarPreparacion(pedido: Pedido) {
+  async marcarComoPedidoListo(pedido: Pedido) {
     const alert = await this.alertCtrl.create({
-      header: 'Preparar Pedido',
-      message: '¿Quieres marcar este pedido como "En preparación"?',
+      header: 'Finalizar Preparación',
+      message: '¿Confirmas que el pedido está listo para entregar?',
       buttons: [
         {
           text: 'Cancelar',
           role: 'cancel'
         },
         {
-          text: 'Preparar',
-          handler: async () => {
-            const loading = await this.utilsSvc.loading();
-            await loading.present();
-
-            try {
-              // Actualizar el estado del pedido a EN_PREPARACION
-              await this.firebaseSvc.actualizarEstadoPedido(
-                pedido.id,
-                EstadoPedido.EN_PREPARACION
-              );
-
-              // Mostrar diálogo para marcar pedido como completado
-              this.mostrarDialogoCompletarPedido(pedido);
-
-              this.utilsSvc.presentToast({
-                message: 'Pedido marcado como "En preparación"',
-                duration: 2000,
-                color: 'success'
-              });
-            } catch (error) {
-              console.error('Error al actualizar estado del pedido:', error);
-              this.utilsSvc.presentToast({
-                message: 'Error al procesar el pedido',
-                duration: 2000,
-                color: 'danger'
-              });
-            } finally {
-              loading.dismiss();
-            }
-          }
-        }
-      ]
-    });
-
-    await alert.present();
-  }
-
-  async mostrarDialogoCompletarPedido(pedido: Pedido) {
-    const alert = await this.alertCtrl.create({
-      header: 'Preparación de Pedido',
-      message: '¿Ya has completado la preparación del pedido?',
-      buttons: [
-        {
-          text: 'Todavía no',
-          role: 'cancel'
-        },
-        {
-          text: 'Pedido Listo',
+          text: 'Confirmar',
           handler: async () => {
             const loading = await this.utilsSvc.loading();
             await loading.present();

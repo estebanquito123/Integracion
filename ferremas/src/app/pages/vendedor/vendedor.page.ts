@@ -1,4 +1,4 @@
-// vendedor.page.ts (actualizado)
+// vendedor.page.ts
 import { Component, OnInit, inject } from '@angular/core';
 import { FirebaseService } from 'src/app/servicios/firebase.service';
 import { EstadoPedido, Pedido } from 'src/app/models/bd.models';
@@ -18,9 +18,14 @@ export class VendedorPage implements OnInit {
   segmento: string = 'pendientes';
   pedidosPendientes: Pedido[] = [];
   pedidosAceptados: Pedido[] = [];
+  pedidosListoDespacho: Pedido[] = [];
   pedidosRechazados: Pedido[] = [];
 
   ngOnInit() {
+    this.cargarPedidos();
+  }
+
+  ionViewWillEnter() {
     this.cargarPedidos();
   }
 
@@ -30,9 +35,9 @@ export class VendedorPage implements OnInit {
       this.pedidosPendientes = data.filter(p => p.estadoPedido === EstadoPedido.PENDIENTE);
       this.pedidosAceptados = data.filter(p =>
         p.estadoPedido === EstadoPedido.ACEPTADO ||
-        p.estadoPedido === EstadoPedido.EN_PREPARACION ||
-        p.estadoPedido === EstadoPedido.PREPARADO
+        p.estadoPedido === EstadoPedido.EN_PREPARACION
       );
+      this.pedidosListoDespacho = data.filter(p => p.estadoPedido === EstadoPedido.PREPARADO);
       this.pedidosRechazados = data.filter(p => p.estadoPedido === EstadoPedido.RECHAZADO);
     });
   }
@@ -119,6 +124,50 @@ export class VendedorPage implements OnInit {
               console.error('Error al rechazar pedido:', error);
               this.utilsSvc.presentToast({
                 message: 'Error al rechazar el pedido',
+                duration: 2000,
+                color: 'danger'
+              });
+            } finally {
+              loading.dismiss();
+            }
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  async marcarComoEntregado(pedido: Pedido) {
+    const alert = await this.alertCtrl.create({
+      header: 'Entregar Pedido',
+      message: '¿Confirmas que el pedido ha sido entregado al cliente?',
+      buttons: [
+        {
+          text: 'Cancelar',
+          role: 'cancel'
+        },
+        {
+          text: 'Confirmar',
+          handler: async () => {
+            const loading = await this.utilsSvc.loading();
+            await loading.present();
+
+            try {
+              await this.firebaseSvc.actualizarEstadoPedido(pedido.id, EstadoPedido.ENTREGADO);
+
+              // Opcionalmente, también podríamos actualizar el inventario aquí si no se hizo antes
+              await this.firebaseSvc.actualizarInventarioDespuesDeCompra(pedido.productos);
+
+              this.utilsSvc.presentToast({
+                message: 'Pedido marcado como entregado',
+                duration: 2000,
+                color: 'success'
+              });
+            } catch (error) {
+              console.error('Error al marcar pedido como entregado:', error);
+              this.utilsSvc.presentToast({
+                message: 'Error al procesar la entrega',
                 duration: 2000,
                 color: 'danger'
               });
