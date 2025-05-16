@@ -91,15 +91,17 @@ export class ContadorPage implements OnInit {
   });
 }
 
-  calcularMontoTotalPedido(pedido: Pedido): number {
-    if (!pedido.productos || !Array.isArray(pedido.productos)) {
-      return 0;
-    }
-
-    return pedido.productos.reduce((total, producto) => {
-      return total + (producto.precio || 0);
-    }, 0);
+calcularMontoTotalPedido(pedido: Pedido): number {
+  if (!pedido.productos || !Array.isArray(pedido.productos)) {
+    return 0;
   }
+
+  return pedido.productos.reduce((total, producto) => {
+    // Verificar si el producto tiene cantidad especificada
+    const cantidad = producto.cantidad || 1;
+    return total + ((producto.precio || 0) * cantidad);
+  }, 0);
+}
 
   cambiarSegmento() {
     // Este método se llama cuando el usuario cambia de segmento
