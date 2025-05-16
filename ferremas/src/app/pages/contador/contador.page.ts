@@ -1,3 +1,4 @@
+//contador.page.ts
 import { Component, OnInit, inject } from '@angular/core';
 import { FirebaseService } from 'src/app/servicios/firebase.service';
 import { UtilsService } from 'src/app/servicios/utils.service';
@@ -53,27 +54,39 @@ export class ContadorPage implements OnInit {
   }
 
   calcularEstadisticas(pedidos: Pedido[]) {
-    this.totalPedidosEntregados = pedidos.length;
+  this.totalPedidosEntregados = pedidos.length;
 
-    // Reiniciar variables
-    this.totalIngresos = 0;
-    this.ingresosPorTransferencia = 0;
-    this.ingresosPorWebpay = 0;
+  // Reiniciar variables
+  this.totalIngresos = 0;
+  this.ingresosPorTransferencia = 0;
+  this.ingresosPorWebpay = 0;
 
-    // Calcular totales
-    pedidos.forEach(pedido => {
-      // Si el monto total ya está calculado, usarlo
-      const montoTotal = pedido.montoTotal || this.calcularMontoTotalPedido(pedido);
+  // Calcular totales con método más robusto
+  pedidos.forEach(pedido => {
+    let montoTotal = 0;
 
-      this.totalIngresos += montoTotal;
+    // Si el monto total ya está calculado, usarlo
+    if (pedido.montoTotal && typeof pedido.montoTotal === 'number') {
+      montoTotal = pedido.montoTotal;
+    }
+    // Si no, calcularlo a partir de los productos
+    else if (pedido.productos && Array.isArray(pedido.productos)) {
+      montoTotal = pedido.productos.reduce((total, producto) => {
+        // Verificar si el producto tiene cantidad especificada
+        const cantidad = producto.cantidad || 1;
+        return total + (producto.precio * cantidad);
+      }, 0);
+    }
 
-      if (pedido.metodoPago === 'transferencia') {
-        this.ingresosPorTransferencia += montoTotal;
-      } else if (pedido.metodoPago === 'webpay') {
-        this.ingresosPorWebpay += montoTotal;
-      }
-    });
-  }
+    this.totalIngresos += montoTotal;
+
+    if (pedido.metodoPago === 'transferencia') {
+      this.ingresosPorTransferencia += montoTotal;
+    } else if (pedido.metodoPago === 'webpay') {
+      this.ingresosPorWebpay += montoTotal;
+    }
+  });
+}
 
   calcularMontoTotalPedido(pedido: Pedido): number {
     if (!pedido.productos || !Array.isArray(pedido.productos)) {
@@ -91,61 +104,62 @@ export class ContadorPage implements OnInit {
   }
 
   async confirmarPagoTransferencia(pedido: Pedido) {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirmar Pago',
-      message: '¿Has verificado que el pago por transferencia fue recibido correctamente?',
-      buttons: [
-        {
-          text: 'Cancelar',
-          role: 'cancel'
-        },
-        {
-          text: 'Confirmar Pago',
-          handler: async () => {
-            const loading = await this.utilsSvc.loading();
-            await loading.present();
+  const alert = await this.alertCtrl.create({
+    header: 'Confirmar Pago',
+    message: '¿Has verificado que el pago por transferencia fue recibido correctamente?',
+    buttons: [
+      {
+        text: 'Cancelar',
+        role: 'cancel'
+      },
+      {
+        text: 'Confirmar Pago',
+        handler: async () => {
+          const loading = await this.utilsSvc.loading();
+          await loading.present();
 
-            try {
-              // Actualizar el estado del pago a PAGADO
-              await this.firebaseSvc.actualizarEstadoPago(pedido.id, EstadoPago.PAGADO);
+          try {
+            // Actualizar el estado del pago a PAGADO
+            await this.firebaseSvc.actualizarEstadoPago(pedido.id, EstadoPago.PAGADO);
 
-              // Si no tiene monto total calculado, calcularlo y guardarlo
-              if (!pedido.montoTotal) {
-                const montoTotal = this.calcularMontoTotalPedido(pedido);
-                await this.firebaseSvc.actualizarMontoTotalPedido(pedido.id, montoTotal);
-              }
-
-              // Marcar como verificado por el contador
-              await this.firebaseSvc.marcarPedidoVerificado(pedido.id, true);
-
-              // Notificar al vendedor sobre el pago confirmado
-              await this.firebaseSvc.notificarPagoConfirmadoAlVendedor(pedido);
-
-              this.utilsSvc.presentToast({
-                message: 'Pago confirmado correctamente',
-                duration: 2000,
-                color: 'success'
-              });
-
-              // Recargar datos
-              this.cargarDatos();
-            } catch (error) {
-              console.error('Error al confirmar pago:', error);
-              this.utilsSvc.presentToast({
-                message: 'Error al confirmar el pago',
-                duration: 2000,
-                color: 'danger'
-              });
-            } finally {
-              loading.dismiss();
+            // Si no tiene monto total calculado, calcularlo y guardarlo
+            if (!pedido.montoTotal) {
+              const montoTotal = this.calcularMontoTotalPedido(pedido);
+              await this.firebaseSvc.actualizarMontoTotalPedido(pedido.id, montoTotal);
             }
+
+            // Marcar como verificado por el contador
+            await this.firebaseSvc.marcarPedidoVerificado(pedido.id, true);
+
+            // Notificar al vendedor sobre el pago confirmado
+            // Este método debe asegurarse de que el vendedor reciba el pedido para procesarlo
+            await this.firebaseSvc.notificarPagoConfirmadoAlVendedor(pedido);
+
+            this.utilsSvc.presentToast({
+              message: 'Pago confirmado correctamente',
+              duration: 2000,
+              color: 'success'
+            });
+
+            // Recargar datos
+            this.cargarDatos();
+          } catch (error) {
+            console.error('Error al confirmar pago:', error);
+            this.utilsSvc.presentToast({
+              message: 'Error al confirmar el pago',
+              duration: 2000,
+              color: 'danger'
+            });
+          } finally {
+            loading.dismiss();
           }
         }
-      ]
-    });
+      }
+    ]
+  });
 
-    await alert.present();
-  }
+  await alert.present();
+}
 
   async rechazarPagoTransferencia(pedido: Pedido) {
     const alert = await this.alertCtrl.create({

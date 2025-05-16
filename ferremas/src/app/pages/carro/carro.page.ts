@@ -9,6 +9,9 @@ import { TransbankService } from 'src/app/servicios/transbank.service';
 import { AlertController } from '@ionic/angular';
 import { AuthService } from 'src/app/servicios/auth.service';
 import { MetodoRetiroModal } from 'src/app/shared/metodo-retiro-modal/metodo-retiro-modal.component';
+import { ItemCarrito } from 'src/app/models/bd.models';
+
+
 
 @Component({
   selector: 'app-carro',
@@ -17,6 +20,7 @@ import { MetodoRetiroModal } from 'src/app/shared/metodo-retiro-modal/metodo-ret
 })
 export class CarroPage implements OnInit {
   productos: Producto[] = [];
+  ItemCarrito: ItemCarrito[] = [];
   total = 0;
 
   carritoService = inject(CarritoService);
@@ -124,7 +128,7 @@ export class CarroPage implements OnInit {
     }
   }
 
-  async pagarPorTransferencia(retiro: string, direccion: string) {
+async pagarPorTransferencia(retiro: string, direccion: string) {
   const loading = await this.utilsSvc.loading();
   await loading.present();
 
@@ -134,43 +138,53 @@ export class CarroPage implements OnInit {
     // Calcular el monto total del pedido
     const montoTotal = this.carritoService.getTotal();
 
-    // Crear objeto de pedido completo primero
+    // Obtener información del usuario actual
+    const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const clienteId = usuario.uid;
+
+    // Crear objeto de pedido completo
     const pedidoData = {
-      productos: this.productos,
+      productos: this.productos.map(item => ({
+        id: item.id,
+        nombre: item.nombre,
+        precio: item.precio,
+        cantidad: item.cantidad,
+        imagen: item.imagen,
+        stock: item.stock
+      })),
       ordenCompra,
       metodoPago: 'transferencia',
       direccion,
       retiro,
       fecha: new Date().toISOString(),
-      estadoPago: EstadoPago.PENDIENTE, // Usar el enum definido
+      estadoPago: EstadoPago.PENDIENTE,
       estadoPedido: EstadoPedido.PENDIENTE,
-      montoTotal // Agregar monto total para el contador
+      montoTotal,
+      clienteId
     };
 
-    // Guardar el pedido completo
-    const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
-    const clienteId = usuario.uid;
-
-    // Agregar el ID del cliente al pedido
-    pedidoData.clienteId = clienteId;
-
-    // Guardar el pedido pendiente para que lo procese el contador
-    const pedidoRef = await this.firebaseSvc.notificarPedidoAVendedor(pedidoData);
+    // Notificar al contador sobre el pago pendiente por transferencia
+    // Este es el nuevo método que vamos a implementar
+    await this.firebaseSvc.notificarPagoPendienteAContador(pedidoData);
 
     // Guardar la compra en el historial del cliente
-    for (const producto of this.productos) {
+    for (const item of this.productos) {
+      const producto = item;
+      const cantidad = item.cantidad;
+
       const compra = {
         productoId: producto.id,
         nombre: producto.nombre,
         precio: producto.precio,
-        cantidad: producto.cantidad || 1,
+        cantidad,
         fecha: new Date().toISOString(),
         ordenCompra,
         estadoPago: EstadoPago.PENDIENTE,
         metodoPago: 'transferencia',
         direccion,
-        retiro,
+        retiro
       };
+
       await this.firebaseSvc.guardarCompra(compra);
     }
 

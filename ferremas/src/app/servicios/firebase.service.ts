@@ -58,9 +58,12 @@ export class FirebaseService {
   }
 
   // Método para obtener los pedidos por estado
-  getPedidosPorEstado() {
-    return this.firestore.collection<Pedido>('pedidosPendientes').valueChanges({ idField: 'id' });
-  }
+getPedidosPorEstado() {
+  return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
+    // Solo mostrar pedidos con estado de pago PAGADO o que sean por Webpay
+    ref.where('estadoPago', 'in', [EstadoPago.PAGADO, 'pagado'])
+  ).valueChanges({ idField: 'id' });
+}
 
   getPedidosPorTransferenciaPendientes(): Observable<Pedido[]> {
     return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
@@ -184,45 +187,52 @@ async actualizarEstadoPago(pedidoId: string, nuevoEstado: EstadoPago): Promise<v
   }
 
   // Notificar al vendedor de un pago confirmado por el contador
-  async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
-    // Obtener vendedores
-    const vendedoresSnap = await this.firestore.collection('usuarios', ref =>
-      ref.where('rol', '==', 'vendedor')
-    ).get().toPromise();
+async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
+  // Actualizar el pedido para indicar que ahora está listo para que lo procese el vendedor
+  // Esto es clave: mantener el estado PENDIENTE para que aparezca en la lista de pedidos pendientes del vendedor
+  await this.firestore.collection('pedidosPendientes').doc(pedido.id).update({
+    estadoPago: EstadoPago.PAGADO,
+    estadoPedido: EstadoPedido.PENDIENTE // Mantenerlo como pendiente para que el vendedor lo vea
+  });
 
-    for (const doc of vendedoresSnap.docs) {
-      const vendedor = doc.data() as Usuario;
-      if (vendedor.pushToken) {
-        const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
+  // Obtener vendedores
+  const vendedoresSnap = await this.firestore.collection('usuarios', ref =>
+    ref.where('rol', '==', 'vendedor')
+  ).get().toPromise();
 
-        await fetch('https://localhost:3000/api/notificar-vendedor', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token: vendedor.pushToken,
-            title: '💰 Pago Confirmado',
-            body: `Orden ${pedido.ordenCompra}: Pago por transferencia verificado por contabilidad`,
-            data: {
-              ordenCompra: pedido.ordenCompra,
-              metodoPago: pedido.metodoPago,
-              productos: JSON.stringify(pedido.productos)
-            }
-          })
-        });
-      }
+  for (const doc of vendedoresSnap.docs) {
+    const vendedor = doc.data() as Usuario;
+    if (vendedor.pushToken) {
+      const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
+
+      await fetch('https://localhost:3000/api/notificar-vendedor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: vendedor.pushToken,
+          title: '💰 Pago Confirmado',
+          body: `Orden ${pedido.ordenCompra}: Pago por transferencia verificado por contabilidad`,
+          data: {
+            ordenCompra: pedido.ordenCompra,
+            metodoPago: pedido.metodoPago,
+            productos: JSON.stringify(pedido.productos)
+          }
+        })
+      });
     }
-
-    // Registrar notificación en la colección
-    await this.firestore.collection('notificacionesVendedor').add({
-      titulo: '💰 Pago Confirmado',
-      mensaje: `Orden ${pedido.ordenCompra}: Pago por transferencia verificado por contabilidad`,
-      fecha: new Date().toISOString(),
-      leido: false,
-      pedidoId: pedido.id,
-      ordenCompra: pedido.ordenCompra,
-      tipo: 'pago_confirmado'
-    });
   }
+
+  // Registrar notificación en la colección para que los vendedores la vean en la app
+  await this.firestore.collection('notificacionesVendedor').add({
+    titulo: '💰 Pago Confirmado',
+    mensaje: `Orden ${pedido.ordenCompra}: Pago por transferencia verificado por contabilidad`,
+    fecha: new Date().toISOString(),
+    leido: false,
+    pedidoId: pedido.id,
+    ordenCompra: pedido.ordenCompra,
+    tipo: 'pago_confirmado'
+  });
+}
 
   // Método para notificar al vendedor cuando un pedido está preparado
   async notificarPedidoPreparado(pedido: Pedido) {
@@ -495,6 +505,26 @@ async registrarClienteEnPedido(pedidoId: string, clienteId: string) {
     clienteId: clienteId
   });
 }
+
+async enviarPedidoAlContador(pedido: any) {
+  try {
+    // Guardamos el pedido en la colección general pero marcamos que está pendiente de verificación del contador
+    return this.firestore.collection('pedidosPendientes').add({
+      ...pedido,
+      estadoPago: EstadoPago.PENDIENTE,
+      estadoPedido: EstadoPedido.PENDIENTE,
+      verificadoPorContador: false
+    });
+  } catch (error) {
+    console.error('Error al enviar pedido al contador:', error);
+    throw error;
+  }
+}
+async notificarPagoPendienteAContador(pedido: any): Promise<any> {
+  // Guardar el pedido en la colección de pedidos pendientes con estado de pago pendiente
+  return this.firestore.collection('pedidosPendientes').add(pedido);
+}
+
 
 
 }

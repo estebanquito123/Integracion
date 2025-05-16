@@ -1,3 +1,4 @@
+//bd.models.ts
 export interface Usuario {
   uid: string;
   nombreCompleto: string;
@@ -13,6 +14,7 @@ export interface Producto {
   nombre: string;
   precio: number;
   stock: number;
+  cantidad: number;
 }
 
 export interface ItemCarrito {
