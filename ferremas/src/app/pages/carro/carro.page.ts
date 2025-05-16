@@ -142,47 +142,53 @@ async pagarPorTransferencia(retiro: string, direccion: string) {
     const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
     const clienteId = usuario.uid;
 
-    // Crear objeto de pedido completo
+    // Convertir productos del carrito a ProductoPedido
+    const productosPedido = this.productos.map(producto => {
+      // Buscar el item correspondiente en el carrito para obtener la cantidad
+      const itemCarrito = this.carritoService.getItems().find(item => item.id === producto.id);
+      const cantidad = itemCarrito ? itemCarrito.cantidad : 1; // Si no se encuentra, usar 1 como valor por defecto
+
+      return {
+        id: producto.id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+        cantidad: cantidad,
+        imagen: producto.imagen || '',  // Aseguramos que la imagen nunca sea undefined
+        stock: producto.stock
+      };
+    });
+
+    // Crear objeto de pedido completo - asegurando que no haya campos undefined
     const pedidoData = {
-      productos: this.productos.map(item => ({
-        id: item.id,
-        nombre: item.nombre,
-        precio: item.precio,
-        cantidad: item.cantidad,
-        imagen: item.imagen,
-        stock: item.stock
-      })),
+      productos: productosPedido,
       ordenCompra,
       metodoPago: 'transferencia',
-      direccion,
-      retiro,
+      direccion: direccion || '', // Aseguramos que no sea undefined
+      retiro: retiro || '', // Aseguramos que no sea undefined
       fecha: new Date().toISOString(),
       estadoPago: EstadoPago.PENDIENTE,
       estadoPedido: EstadoPedido.PENDIENTE,
       montoTotal,
-      clienteId
+      clienteId: clienteId || '', // Aseguramos que no sea undefined
+      verificadoPorContador: false // Añadimos este campo para que el contador sepa que debe revisarlo
     };
 
     // Notificar al contador sobre el pago pendiente por transferencia
-    // Este es el nuevo método que vamos a implementar
     await this.firebaseSvc.notificarPagoPendienteAContador(pedidoData);
 
     // Guardar la compra en el historial del cliente
-    for (const item of this.productos) {
-      const producto = item;
-      const cantidad = item.cantidad;
-
+    for (const producto of productosPedido) {
       const compra = {
         productoId: producto.id,
         nombre: producto.nombre,
         precio: producto.precio,
-        cantidad,
+        cantidad: producto.cantidad,
         fecha: new Date().toISOString(),
         ordenCompra,
         estadoPago: EstadoPago.PENDIENTE,
         metodoPago: 'transferencia',
-        direccion,
-        retiro
+        direccion: direccion || '',
+        retiro: retiro || ''
       };
 
       await this.firebaseSvc.guardarCompra(compra);
@@ -227,6 +233,7 @@ async pagarPorTransferencia(retiro: string, direccion: string) {
     loading.dismiss();
   }
 }
+
 async checkPendingTransaction() {
   const pendingTransaction = localStorage.getItem('currentTransaction');
   if (pendingTransaction) {

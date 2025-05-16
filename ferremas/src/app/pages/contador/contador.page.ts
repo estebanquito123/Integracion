@@ -4,7 +4,8 @@ import { FirebaseService } from 'src/app/servicios/firebase.service';
 import { UtilsService } from 'src/app/servicios/utils.service';
 import { EstadoPago, EstadoPedido, Pedido } from 'src/app/models/bd.models';
 import { AlertController } from '@ionic/angular';
-import { formatDate } from '@angular/common';
+import { formatDate, registerLocaleData } from '@angular/common';
+import localeEs from '@angular/common/locales/es'
 
 @Component({
   selector: 'app-contador',
@@ -28,7 +29,9 @@ export class ContadorPage implements OnInit {
   ingresosPorTransferencia: number = 0;
   ingresosPorWebpay: number = 0;
 
-  constructor() { }
+  constructor() {
+    registerLocaleData(localeEs, 'es');
+  }
 
   ngOnInit() {
     this.cargarDatos();
@@ -161,6 +164,7 @@ export class ContadorPage implements OnInit {
   await alert.present();
 }
 
+
   async rechazarPagoTransferencia(pedido: Pedido) {
     const alert = await this.alertCtrl.create({
       header: 'Rechazar Pago',
@@ -210,77 +214,90 @@ export class ContadorPage implements OnInit {
   }
 
   async generarReporte() {
-    const alert = await this.alertCtrl.create({
-      header: 'Generar Reporte',
-      message: '¿Deseas generar un reporte del periodo actual?',
-      buttons: [
-        {
-          text: 'Cancelar',
-          role: 'cancel'
-        },
-        {
-          text: 'Generar',
-          handler: async () => {
-            const loading = await this.utilsSvc.loading();
-            await loading.present();
+  const alert = await this.alertCtrl.create({
+    header: 'Generar Reporte',
+    message: '¿Deseas generar un reporte del periodo actual?',
+    buttons: [
+      {
+        text: 'Cancelar',
+        role: 'cancel'
+      },
+      {
+        text: 'Generar',
+        handler: async () => {
+          const loading = await this.utilsSvc.loading();
+          await loading.present();
 
-            try {
-              const ahora = new Date();
-              const nombreMes = formatDate(ahora, 'MMMM yyyy', 'es');
+          try {
+            const ahora = new Date();
+            // Usamos una alternativa más simple para obtener el nombre del mes
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const nombreMes = meses[ahora.getMonth()] + ' ' + ahora.getFullYear();
 
-              // Primer día del mes actual
-              const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-              // Último día del mes actual
-              const ultimoDiaMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
+            // Primer día del mes actual
+            const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+            // Último día del mes actual
+            const ultimoDiaMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
 
-              const reporte = {
-                periodo: nombreMes,
-                fechaInicio: primerDiaMes.toISOString(),
-                fechaFin: ultimoDiaMes.toISOString(),
-                totalVentas: this.totalIngresos,
-                totalPedidos: this.totalPedidosEntregados,
-                pedidosEntregados: this.totalPedidosEntregados,
-                ventasPorMetodoPago: {
-                  webpay: this.ingresosPorWebpay,
-                  transferencia: this.ingresosPorTransferencia
-                },
-                fechaGeneracion: new Date().toISOString(),
-                generadoPor: JSON.parse(localStorage.getItem('usuario')).uid
-              };
+            const reporte = {
+              periodo: nombreMes,
+              fechaInicio: primerDiaMes.toISOString(),
+              fechaFin: ultimoDiaMes.toISOString(),
+              totalVentas: this.totalIngresos,
+              totalPedidos: this.totalPedidosEntregados,
+              pedidosEntregados: this.totalPedidosEntregados,
+              ventasPorMetodoPago: {
+                webpay: this.ingresosPorWebpay,
+                transferencia: this.ingresosPorTransferencia
+              },
+              fechaGeneracion: new Date().toISOString(),
+              generadoPor: JSON.parse(localStorage.getItem('usuario') || '{}').uid || ''
+            };
 
-              await this.firebaseSvc.generarReporteFinanciero(reporte);
+            await this.firebaseSvc.generarReporteFinanciero(reporte);
 
-              this.utilsSvc.presentToast({
-                message: 'Reporte generado correctamente',
-                duration: 2000,
-                color: 'success'
-              });
-            } catch (error) {
-              console.error('Error al generar reporte:', error);
-              this.utilsSvc.presentToast({
-                message: 'Error al generar el reporte',
-                duration: 2000,
-                color: 'danger'
-              });
-            } finally {
-              loading.dismiss();
-            }
+            this.utilsSvc.presentToast({
+              message: 'Reporte generado correctamente',
+              duration: 2000,
+              color: 'success'
+            });
+          } catch (error) {
+            console.error('Error al generar reporte:', error);
+            this.utilsSvc.presentToast({
+              message: 'Error al generar el reporte',
+              duration: 2000,
+              color: 'danger'
+            });
+          } finally {
+            loading.dismiss();
           }
         }
-      ]
-    });
+      }
+    ]
+  });
 
-    await alert.present();
+  await alert.present();
+}
+
+// SOLUCIÓN 6: Actualiza el método formatearFecha en contador.page.ts
+// para que funcione sin depender de formatDate con locale
+formatearFecha(fecha: string): string {
+  if (!fecha) return 'N/A';
+
+  try {
+    const date = new Date(fecha);
+
+    // Formatear la fecha manualmente sin depender de formatDate
+    const dia = date.getDate().toString().padStart(2, '0');
+    const mes = (date.getMonth() + 1).toString().padStart(2, '0');
+    const anio = date.getFullYear();
+    const hora = date.getHours().toString().padStart(2, '0');
+    const minutos = date.getMinutes().toString().padStart(2, '0');
+
+    return `${dia}/${mes}/${anio} ${hora}:${minutos}`;
+  } catch (e) {
+    return fecha;
   }
-
-  formatearFecha(fecha: string): string {
-    if (!fecha) return 'N/A';
-
-    try {
-      const date = new Date(fecha);
-      return formatDate(date, 'dd/MM/yyyy HH:mm', 'es');
-    } catch (e) {
-      return fecha;
-    }
-  }
+}
 }

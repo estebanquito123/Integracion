@@ -60,8 +60,8 @@ export class FirebaseService {
   // Método para obtener los pedidos por estado
 getPedidosPorEstado() {
   return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
-    // Solo mostrar pedidos con estado de pago PAGADO o que sean por Webpay
-    ref.where('estadoPago', 'in', [EstadoPago.PAGADO, 'pagado'])
+    // Solo mostrar pedidos con estado de pago PAGADO
+    ref.where('estadoPago', '==', EstadoPago.PAGADO)
   ).valueChanges({ idField: 'id' });
 }
 
@@ -521,9 +521,25 @@ async enviarPedidoAlContador(pedido: any) {
   }
 }
 async notificarPagoPendienteAContador(pedido: any): Promise<any> {
-  // Guardar el pedido en la colección de pedidos pendientes con estado de pago pendiente
-  return this.firestore.collection('pedidosPendientes').add(pedido);
+  // Verificar que no hay campos undefined antes de guardar
+  const pedidoSanitizado = {
+    productos: pedido.productos || [],
+    ordenCompra: pedido.ordenCompra || '',
+    metodoPago: pedido.metodoPago || 'transferencia',
+    direccion: pedido.direccion || '',
+    retiro: pedido.retiro || '',
+    fecha: pedido.fecha || new Date().toISOString(),
+    estadoPago: pedido.estadoPago || EstadoPago.PENDIENTE,
+    estadoPedido: pedido.estadoPedido || EstadoPedido.PENDIENTE,
+    montoTotal: pedido.montoTotal || 0,
+    clienteId: pedido.clienteId || '',
+    verificadoPorContador: false
+  };
+
+  // Guardar el pedido sanitizado sin undefined
+  return this.firestore.collection('pedidosPendientes').add(pedidoSanitizado);
 }
+
 
 
 
