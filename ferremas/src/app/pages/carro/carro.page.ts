@@ -140,40 +140,46 @@ async pagarPorTransferencia(retiro: string, direccion: string) {
 
     // Obtener información del usuario actual
     const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
-    const clienteId = usuario.uid;
+    const clienteId = usuario?.uid || '';
 
-    // Convertir productos del carrito a ProductoPedido
+    // Convertir productos del carrito a ProductoPedido con validación
     const productosPedido = this.productos.map(producto => {
-      // Buscar el item correspondiente en el carrito para obtener la cantidad
       const itemCarrito = this.carritoService.getItems().find(item => item.id === producto.id);
-      const cantidad = itemCarrito ? itemCarrito.cantidad : 1; // Si no se encuentra, usar 1 como valor por defecto
+      const cantidad = itemCarrito?.cantidad ?? 1;
 
       return {
-        id: producto.id,
-        nombre: producto.nombre,
-        precio: producto.precio,
+        id: producto.id || '',
+        nombre: producto.nombre || 'Sin nombre',
+        precio: producto.precio ?? 0,
         cantidad: cantidad,
-        imagen: producto.imagen || '',  // Aseguramos que la imagen nunca sea undefined
-        stock: producto.stock
+        imagen: producto.imagen || '',
+        stock: producto.stock ?? 0
       };
     });
 
-    // Crear objeto de pedido completo - asegurando que no haya campos undefined
+    // Crear el objeto pedido sin valores undefined
     const pedidoData = {
       productos: productosPedido,
       ordenCompra,
       metodoPago: 'transferencia',
-      direccion: direccion || '', // Aseguramos que no sea undefined
-      retiro: retiro || '', // Aseguramos que no sea undefined
+      direccion: direccion || '',
+      retiro: retiro || '',
       fecha: new Date().toISOString(),
       estadoPago: EstadoPago.PENDIENTE,
       estadoPedido: EstadoPedido.PENDIENTE,
-      montoTotal,
-      clienteId: clienteId || '', // Aseguramos que no sea undefined
-      verificadoPorContador: false // Añadimos este campo para que el contador sepa que debe revisarlo
+      montoTotal: montoTotal ?? 0,
+      clienteId: clienteId,
+      verificadoPorContador: false
     };
 
-    // Notificar al contador sobre el pago pendiente por transferencia
+    // Validación final para evitar errores
+    Object.entries(pedidoData).forEach(([key, value]) => {
+      if (value === undefined) {
+        throw new Error(`Campo ${key} está undefined`);
+      }
+    });
+
+    // Notificar al contador sobre el pago pendiente
     await this.firebaseSvc.notificarPagoPendienteAContador(pedidoData);
 
     // Guardar la compra en el historial del cliente
@@ -197,7 +203,7 @@ async pagarPorTransferencia(retiro: string, direccion: string) {
     this.carritoService.clearCart();
     this.router.navigate(['/cliente']);
 
-    // Mostrar instrucciones para realizar la transferencia
+    // Mostrar instrucciones para transferencia
     const alert = await this.alertController.create({
       header: 'Instrucciones de Pago',
       subHeader: 'Realiza una transferencia con los siguientes datos:',
@@ -223,9 +229,9 @@ async pagarPorTransferencia(retiro: string, direccion: string) {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error('Error en pago por transferencia:', error);
     this.utilsSvc.presentToast({
-      message: 'Error al registrar pedido',
+      message: 'Error al registrar pedido: ' + error.message,
       duration: 2000,
       color: 'danger'
     });
@@ -233,6 +239,7 @@ async pagarPorTransferencia(retiro: string, direccion: string) {
     loading.dismiss();
   }
 }
+
 
 async checkPendingTransaction() {
   const pendingTransaction = localStorage.getItem('currentTransaction');

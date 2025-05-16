@@ -188,8 +188,9 @@ async actualizarEstadoPago(pedidoId: string, nuevoEstado: EstadoPago): Promise<v
 
   // Notificar al vendedor de un pago confirmado por el contador
 async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
+  if (!pedido || !pedido.id) return;
+
   // Actualizar el pedido para indicar que ahora está listo para que lo procese el vendedor
-  // Esto es clave: mantener el estado PENDIENTE para que aparezca en la lista de pedidos pendientes del vendedor
   await this.firestore.collection('pedidosPendientes').doc(pedido.id).update({
     estadoPago: EstadoPago.PAGADO,
     estadoPedido: EstadoPedido.PENDIENTE // Mantenerlo como pendiente para que el vendedor lo vea
@@ -202,8 +203,10 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
 
   for (const doc of vendedoresSnap.docs) {
     const vendedor = doc.data() as Usuario;
-    if (vendedor.pushToken) {
-      const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
+    if (vendedor && vendedor.pushToken) {
+      const productosTexto = pedido.productos && Array.isArray(pedido.productos) ?
+        pedido.productos.map(p => p.nombre || 'Producto').join(', ') :
+        'Sin productos';
 
       await fetch('https://localhost:3000/api/notificar-vendedor', {
         method: 'POST',
@@ -211,11 +214,11 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
         body: JSON.stringify({
           token: vendedor.pushToken,
           title: '💰 Pago Confirmado',
-          body: `Orden ${pedido.ordenCompra}: Pago por transferencia verificado por contabilidad`,
+          body: `Orden ${pedido.ordenCompra || 'sin número'}: Pago por transferencia verificado por contabilidad`,
           data: {
-            ordenCompra: pedido.ordenCompra,
-            metodoPago: pedido.metodoPago,
-            productos: JSON.stringify(pedido.productos)
+            ordenCompra: pedido.ordenCompra || '',
+            metodoPago: pedido.metodoPago || '',
+            productos: JSON.stringify(pedido.productos || [])
           }
         })
       });
@@ -225,11 +228,11 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
   // Registrar notificación en la colección para que los vendedores la vean en la app
   await this.firestore.collection('notificacionesVendedor').add({
     titulo: '💰 Pago Confirmado',
-    mensaje: `Orden ${pedido.ordenCompra}: Pago por transferencia verificado por contabilidad`,
+    mensaje: `Orden ${pedido.ordenCompra || 'sin número'}: Pago por transferencia verificado por contabilidad`,
     fecha: new Date().toISOString(),
     leido: false,
-    pedidoId: pedido.id,
-    ordenCompra: pedido.ordenCompra,
+    pedidoId: pedido.id || '',
+    ordenCompra: pedido.ordenCompra || '',
     tipo: 'pago_confirmado'
   });
 }
@@ -520,25 +523,27 @@ async enviarPedidoAlContador(pedido: any) {
     throw error;
   }
 }
-async notificarPagoPendienteAContador(pedido: any): Promise<any> {
-  // Verificar que no hay campos undefined antes de guardar
-  const pedidoSanitizado = {
-    productos: pedido.productos || [],
-    ordenCompra: pedido.ordenCompra || '',
-    metodoPago: pedido.metodoPago || 'transferencia',
-    direccion: pedido.direccion || '',
-    retiro: pedido.retiro || '',
-    fecha: pedido.fecha || new Date().toISOString(),
-    estadoPago: pedido.estadoPago || EstadoPago.PENDIENTE,
-    estadoPedido: pedido.estadoPedido || EstadoPedido.PENDIENTE,
-    montoTotal: pedido.montoTotal || 0,
-    clienteId: pedido.clienteId || '',
-    verificadoPorContador: false
-  };
+async notificarPagoPendienteAContador(pedido: any) {
+  if (
+    !pedido.ordenCompra ||
+    !pedido.metodoPago ||
+    !pedido.fecha ||
+    !pedido.estadoPago ||
+    !pedido.estadoPedido ||
+    !pedido.clienteId ||
+    !Array.isArray(pedido.productos)
+  ) {
+    throw new Error('Datos incompletos del pedido');
+  }
 
-  // Guardar el pedido sanitizado sin undefined
-  return this.firestore.collection('pedidosPendientes').add(pedidoSanitizado);
+  pedido.verificadoPorContador = false;
+  pedido.montoTotal = pedido.montoTotal || this.calcularMontoTotalPedido(pedido);
+
+  return this.firestore.collection('pedidosPendientes').add(pedido);
 }
+
+
+
 
 
 
