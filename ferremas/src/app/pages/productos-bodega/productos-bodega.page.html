@@ -1,0 +1,20 @@
+<!-- productos-bodega.page.html -->
+<app-header></app-header>
+<ion-content>
+  <ion-list color="hsl(48, 55%, 73%)">
+    <ion-item class="product-item" *ngFor="let p of productos" color="hsl(48, 55%, 73%) ">
+      <div class="image-preview">
+        <img [src]="p.imagen">
+      </div>
+      <ion-label color="hsl(48, 55%, 73%) ">
+        <div class="name">{{p.nombre}}</div>
+        <div class="data">
+          <strong>Precio: </strong> {{p.precio | currency: 'CLP'}} <br>
+          <strong>Stock: </strong> {{p.stock}}
+        </div>
+      </ion-label>
+
+    </ion-item>
+  </ion-list>
+</ion-content>
+<app-footer></app-footer>

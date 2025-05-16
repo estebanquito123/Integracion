@@ -18,6 +18,7 @@
         <ion-label>
           <h2>{{ p.nombre }}</h2>
           <p>Precio: {{ p.precio | currency: 'CLP' }}</p>
+          <p>Cantidad: {{p.cantidad}}</p>
         </ion-label>
         <ion-button fill="clear" color="danger" (click)="eliminarProducto(i)">
           <ion-icon name="trash-outline"></ion-icon>

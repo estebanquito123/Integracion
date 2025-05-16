@@ -62,6 +62,10 @@ const routes: Routes = [
     path: 'notificaciones',
     loadChildren: () => import('./pages/notificaciones/notificaciones.module').then( m => m.NotificacionesPageModule)
   },
+  {
+    path: 'productos-bodega',
+    loadChildren: () => import('./pages/productos-bodega/productos-bodega.module').then( m => m.ProductosBodegaPageModule)
+  },
 
 
 ];

@@ -42,9 +42,9 @@ export class CarroPage implements OnInit {
   }
 
   actualizarCarrito() {
-    this.productos = this.carritoService.getItems();
-    this.total = this.carritoService.getTotal();
-  }
+  this.productos = this.carritoService.getItems();
+  this.total = this.carritoService.getTotal();
+}
 
   eliminarProducto(index: number) {
     this.carritoService.removeItem(index);
@@ -144,18 +144,18 @@ async pagarPorTransferencia(retiro: string, direccion: string) {
 
     // Convertir productos del carrito a ProductoPedido con validación
     const productosPedido = this.productos.map(producto => {
-      const itemCarrito = this.carritoService.getItems().find(item => item.id === producto.id);
-      const cantidad = itemCarrito?.cantidad ?? 1;
+  const itemCarrito = this.carritoService.getItems().find(item => item.id === producto.id);
+  const cantidad = itemCarrito?.cantidad ?? 1;
 
-      return {
-        id: producto.id || '',
-        nombre: producto.nombre || 'Sin nombre',
-        precio: producto.precio ?? 0,
-        cantidad: cantidad,
-        imagen: producto.imagen || '',
-        stock: producto.stock ?? 0
-      };
-    });
+  return {
+    id: producto.id || '',
+    nombre: producto.nombre || 'Sin nombre',
+    precio: producto.precio ?? 0,
+    cantidad: cantidad,
+    imagen: producto.imagen || '',
+    stock: producto.stock ?? 0
+  };
+});
 
     // Crear el objeto pedido sin valores undefined
     const pedidoData = {
