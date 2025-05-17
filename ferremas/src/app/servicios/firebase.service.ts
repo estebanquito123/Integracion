@@ -549,6 +549,10 @@ async notificarPagoPendienteAContador(pedido: any) {
   return this.firestore.collection('pedidosPendientes').add(pedido);
 }
 
+updateUserData(userId: string, userData: any) {
+  return this.firestore.collection('usuarios').doc(userId).update(userData);
+}
+
 
 
 

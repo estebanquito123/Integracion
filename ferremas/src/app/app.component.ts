@@ -2,6 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { AuthService } from './servicios/auth.service';
 import { getAuth } from 'firebase/auth';
+import { PushNotificationService } from './servicios/push-notifications.service';
+import { Platform } from '@ionic/angular';
+
 
 @Component({
   selector: 'app-root',
@@ -9,32 +12,11 @@ import { getAuth } from 'firebase/auth';
   styleUrls: ['app.component.scss'],
 })
 export class AppComponent implements OnInit {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService, private pushNotificationService: PushNotificationService, private platform: Platform) {}
 
-  ngOnInit(): void {
-    this.initPushNotifications();
-  }
-
-  initPushNotifications() {
-    PushNotifications.requestPermissions().then(result => {
-      if (result.receive === 'granted') {
-        PushNotifications.register();
-      }
-    });
-
-    PushNotifications.addListener('registration', async (token) => {
-      console.log('📲 Token FCM recibido:', token.value);
-
-      const auth = getAuth();
-      const user = auth.currentUser;
-
-      if (user?.uid) {
-        await this.authService.registrarTokenPush(token.value, user.uid);
-      }
-    });
-
-    PushNotifications.addListener('registrationError', (error) => {
-      console.error('❌ Error al registrar PushNotifications:', error);
-    });
+async ngOnInit() {
+    // Initialize push notifications after platform is ready
+    await this.platform.ready();
+    this.pushNotificationService.initPush();
   }
 }
