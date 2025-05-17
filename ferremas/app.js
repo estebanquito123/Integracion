@@ -1,7 +1,8 @@
 
 //app.js(backend)
 const admin = require('firebase-admin');
-const serviceAccount = require('./src/app/serviceAccountKey/ferremas2-19f3f-firebase-adminsdk-fbsvc-f8b1b45c33.json');
+
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
