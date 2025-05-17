@@ -124,7 +124,7 @@ async actualizarEstadoPago(pedidoId: string, nuevoEstado: EstadoPago): Promise<v
       if (bodeguero.pushToken) {
         const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
 
-        await fetch('https://localhost:3000/api/notificar-bodeguero', {
+        await fetch('https://integracion-7xjk.onrender.com/api/notificar-bodeguero', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -208,7 +208,7 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
         pedido.productos.map(p => p.nombre || 'Producto').join(', ') :
         'Sin productos';
 
-      await fetch('https://localhost:3000/api/notificar-vendedor', {
+      await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -247,7 +247,7 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
       const vendedor = vendedorSnap.data() as Usuario;
 
       if (vendedor && vendedor.pushToken) {
-        await fetch('https://localhost:3000/api/notificar-vendedor', {
+        await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -270,7 +270,7 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
       for (const doc of vendedoresSnap.docs) {
         const vendedor = doc.data() as Usuario;
         if (vendedor.pushToken) {
-          await fetch('https://localhost:3000/api/notificar-vendedor', {
+          await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -326,7 +326,7 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
         const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
         const tipoEntrega = pedido.retiro === 'domicilio' ? 'Despacho a domicilio' : 'Retiro en tienda';
 
-        await fetch('https://localhost:3000/api/notificar-vendedor', {
+        await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -470,7 +470,7 @@ async notificarClientePedidoListo(pedido: Pedido) {
       const cliente = clienteSnap.data() as Usuario;
 
       if (cliente && cliente.pushToken) {
-        await fetch('https://localhost:3000/api/notificar-cliente', {
+        await fetch('https://integracion-7xjk.onrender.com/notificar-cliente', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
