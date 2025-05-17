@@ -68,7 +68,7 @@ app.get('/api/pagos/verificar/:token', async (req, res) => {
 
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
 app.post('/api/notificar-vendedor', async (req, res) => {
   const { token, title, body, data } = req.body;
