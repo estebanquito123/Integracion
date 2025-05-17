@@ -292,9 +292,16 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
     return this.firestore.collection('pedidosPendientes').valueChanges({ idField: 'id' });
   }
 
-  getSucursales() {
-    const ref = collection(getFirestore(), 'sucursales');
-    return collectionData(query(ref), { idField: 'id' });
+  getSucursales(): Observable<any[]> {
+    return this.firestore.collection('sucursales', ref =>
+      ref.where('activo', '==', true)
+    ).snapshotChanges().pipe(
+      map(actions => actions.map(a => {
+        const data = a.payload.doc.data() as any;
+        const id = a.payload.doc.id;
+        return { id, ...data };
+      }))
+    );
   }
 
   addSucursal(data: { nombre: string, direccion: string }) {

@@ -6,6 +6,7 @@
 export const environment = {
   production: false,
   apiUrl: 'https://webpay3gint.transbank.cl/rswebpaytransaction/api/webpay/v1.2/transactions',
+  googleMapsApiKey: "AIzaSyCgkoiLpJBZyt0B7KYn1VgsMqPNe_VVowU",
   firebaseConfig :{
     apiKey: "AIzaSyDSAO1qifKDwFk2kX7wO9XWA9NSgFM5NVs",
     authDomain: "ferremas2-19f3f.firebaseapp.com",

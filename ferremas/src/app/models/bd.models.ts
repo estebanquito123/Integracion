@@ -97,3 +97,16 @@ export interface ReporteFinanciero {
   fechaGeneracion: string;
   generadoPor: string; // UID del contador
 }
+
+export interface Sucursal {
+  id?: string;
+  nombre: string;
+  direccion: string;
+  telefono: string;
+  horario: string;
+  ubicacion: {
+    lat: number;
+    lng: number;
+  };
+  activo: boolean;
+}

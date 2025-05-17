@@ -26,5 +26,8 @@
   <p *ngIf="usuario?.rol === 'vendedor'">
     <a [routerLink]="['/productos-bodega']">Productos en bodega</a>
   </p>
+  <p *ngIf="usuario?.rol === 'cliente'">
+    <a [routerLink]="['/sucursales']">Sucursales</a>
+  </p>
   </div>
 

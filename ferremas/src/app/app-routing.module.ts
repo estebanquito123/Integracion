@@ -66,6 +66,10 @@ const routes: Routes = [
     path: 'productos-bodega',
     loadChildren: () => import('./pages/productos-bodega/productos-bodega.module').then( m => m.ProductosBodegaPageModule)
   },
+  {
+    path: 'sucursales',
+    loadChildren: () => import('./pages/sucursales/sucursales.module').then( m => m.SucursalesPageModule)
+  },
 
 
 ];
