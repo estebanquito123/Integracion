@@ -70,6 +70,10 @@ const routes: Routes = [
     path: 'sucursales',
     loadChildren: () => import('./pages/sucursales/sucursales.module').then( m => m.SucursalesPageModule)
   },
+  {
+    path: 'sucursales-cliente',
+    loadChildren: () => import('./pages/sucursales-cliente/sucursales-cliente.module').then( m => m.SucursalesClientePageModule)
+  },
 
 
 ];

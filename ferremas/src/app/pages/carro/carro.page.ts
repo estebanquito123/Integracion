@@ -208,15 +208,15 @@ async pagarPorTransferencia(retiro: string, direccion: string) {
       header: 'Instrucciones de Pago',
       subHeader: 'Realiza una transferencia con los siguientes datos:',
       message: `
-        <p><strong>Banco:</strong> Banco Estado</p>
-        <p><strong>Cuenta:</strong> Cuenta Corriente</p>
-        <p><strong>Número:</strong> 123456789</p>
-        <p><strong>RUT:</strong> 12.345.678-9</p>
-        <p><strong>Nombre:</strong> Tienda Online SpA</p>
-        <p><strong>Email:</strong> pagos@tiendaonline.cl</p>
-        <p><strong>Monto:</strong> $${montoTotal}</p>
-        <p><strong>Orden de Compra:</strong> ${ordenCompra}</p>
-        <p>El contador confirmará tu pago a la brevedad.</p>
+        Banco: Banco Estado
+        Cuenta:Cuenta Corriente
+        Número: 123456789
+        RUT: 12.345.678-9
+        Nombre: Tienda Online SpA
+        Email:pagos@tiendaonline.cl
+        Monto: $${montoTotal}
+        Orden de Compra: ${ordenCompra}
+        El contador confirmará tu pago a la brevedad.
       `,
       buttons: ['Entendido']
     });

@@ -1,13 +1,18 @@
 .pie {
-  background-color: gray;
-  color: white;
-  text-align: center;
-  padding: 20px;
   position: fixed;
   bottom: 0;
   width: 100%;
-  font-family: Arial, sans-serif;
+  background-color: #333;
+  color: white;
+  text-align: center;
+  padding: 10px;
+  z-index: 100;
 }
+
+.main-content {
+  padding-bottom: 80px; // para no quedar tapado
+}
+
 
 .pie h1 {
   margin: 0;
@@ -27,3 +32,16 @@
 .pie a:hover {
   text-decoration: underline;
 }
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.pie {
+  background-color: #333;
+  color: white;
+  padding: 10px;
+  text-align: center;
+}
+
