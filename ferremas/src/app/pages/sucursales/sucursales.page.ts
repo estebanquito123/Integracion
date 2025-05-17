@@ -190,28 +190,34 @@ export class SucursalesPage implements OnInit {
   }
 
   editSucursal(sucursal: Sucursal) {
-    this.isEditMode = true;
-    this.currentSucursalId = sucursal.id;
-    this.sucursalForm.setValue({
-      nombre: sucursal.nombre,
-      direccion: sucursal.direccion,
-      telefono: sucursal.telefono,
-      horario: sucursal.horario,
-      ubicacion: {
-        lat: sucursal.ubicacion.lat,
-        lng: sucursal.ubicacion.lng
-      },
-      activo: sucursal.activo
-    });
+  this.isEditMode = true;
+  this.currentSucursalId = sucursal.id;
 
-    // Actualizar mapa y marcador
+  // Definir ubicación predeterminada si no existe
+  const ubicacion = sucursal.ubicacion || { lat: null, lng: null };
+
+  this.sucursalForm.setValue({
+    nombre: sucursal.nombre || '',
+    direccion: sucursal.direccion || '',
+    telefono: sucursal.telefono || '',
+    horario: sucursal.horario || '',
+    ubicacion: {
+      lat: ubicacion.lat || null,
+      lng: ubicacion.lng || null
+    },
+    activo: sucursal.activo !== undefined ? sucursal.activo : true
+  });
+
+  // Actualizar mapa y marcador solo si las coordenadas son válidas
+  if (ubicacion.lat && ubicacion.lng) {
     const location = new google.maps.LatLng(
-      sucursal.ubicacion.lat,
-      sucursal.ubicacion.lng
+      ubicacion.lat,
+      ubicacion.lng
     );
     this.map.setCenter(location);
     this.placeMarker(location);
   }
+}
 
   async confirmDelete(sucursal: Sucursal) {
     const alert = await this.alertCtrl.create({
@@ -277,17 +283,23 @@ export class SucursalesPage implements OnInit {
   }
 
 abrirEnGoogleMaps(sucursal: Sucursal) {
-  if (sucursal && sucursal.ubicacion && sucursal.ubicacion.lat && sucursal.ubicacion.lng) {
-    // Formatear las coordenadas para la URL de Google Maps
-    const coords = `${sucursal.ubicacion.lat},${sucursal.ubicacion.lng}`;
-
-    // Crear la URL de Google Maps incluyendo el nombre de la sucursal para mostrar un pin etiquetado
-    const url = `https://www.google.com/maps/search/?api=1&query=${coords}&query_place_id=${encodeURIComponent(sucursal.nombre)}`;
-
-    // Abrir la URL en una nueva pestaña del navegador
-    window.open(url, '_blank');
-  } else {
-    this.presentToast('No se pudo abrir el mapa: coordenadas no disponibles');
+  if (!sucursal) {
+    this.presentToast('No se pudo abrir el mapa: datos de sucursal no disponibles');
+    return;
   }
+
+  if (!sucursal.ubicacion || !sucursal.ubicacion.lat || !sucursal.ubicacion.lng) {
+    this.presentToast('No se pudo abrir el mapa: coordenadas no disponibles');
+    return;
+  }
+
+  // Formatear las coordenadas para la URL de Google Maps
+  const coords = `${sucursal.ubicacion.lat},${sucursal.ubicacion.lng}`;
+
+  // Crear la URL de Google Maps incluyendo el nombre de la sucursal para mostrar un pin etiquetado
+  const url = `https://www.google.com/maps/search/?api=1&query=${coords}&query_place_id=${encodeURIComponent(sucursal.nombre || '')}`;
+
+  // Abrir la URL en una nueva pestaña del navegador
+  window.open(url, '_blank');
 }
 }
