@@ -88,7 +88,7 @@
       </ion-card>
     </form>
 
-    <!-- Lista de Sucursales -->
+    <!-- Lista de Sucursales Mejorada -->
     <ion-card class="ion-margin-top">
       <ion-card-header>
         <ion-card-title>Sucursales Existentes</ion-card-title>
@@ -97,25 +97,38 @@
       <ion-card-content>
         <ion-list>
           <ion-item-sliding *ngFor="let sucursal of sucursales">
-            <ion-item>
+            <ion-item detail="false">
+              <ion-thumbnail slot="start" *ngIf="sucursal.ubicacion" class="location-thumbnail" (click)="abrirEnGoogleMaps(sucursal)">
+                <ion-icon name="location" size="large" color="danger"></ion-icon>
+              </ion-thumbnail>
               <ion-label>
                 <h2>{{ sucursal.nombre }}</h2>
-                <p>{{ sucursal.direccion }}</p>
-                <p>{{ sucursal.telefono }} | {{ sucursal.horario }}</p>
+                <p>
+                  <ion-icon name="home-outline" class="small-icon"></ion-icon>
+                  {{ sucursal.direccion }}
+                </p>
+                <p>
+                  <ion-icon name="call-outline" class="small-icon"></ion-icon>
+                  {{ sucursal.telefono }}
+                </p>
+                <p>
+                  <ion-icon name="time-outline" class="small-icon"></ion-icon>
+                  {{ sucursal.horario }}
+                </p>
                 <ion-badge color="{{ sucursal.activo ? 'success' : 'medium' }}" class="ion-margin-top">
                   {{ sucursal.activo ? 'Activo' : 'Inactivo' }}
                 </ion-badge>
               </ion-label>
+              <ion-button fill="clear" slot="end" color="primary" (click)="abrirEnGoogleMaps(sucursal)">
+                <ion-icon name="map-outline" slot="icon-only" size="large"></ion-icon>
+              </ion-button>
             </ion-item>
-
-            <ion-item-options side="end">
               <ion-item-option color="primary" (click)="editSucursal(sucursal)">
                 <ion-icon slot="icon-only" name="create-outline"></ion-icon>
               </ion-item-option>
-              <ion-item-option color="danger" (click)="confirmDelete(sucursal)">
+              <ion-button color="danger" (click)="confirmDelete(sucursal)">
                 <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
-              </ion-item-option>
-            </ion-item-options>
+              </ion-button>
           </ion-item-sliding>
 
           <ion-item *ngIf="sucursales.length === 0">

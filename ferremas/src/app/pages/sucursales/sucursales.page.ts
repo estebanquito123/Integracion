@@ -275,4 +275,19 @@ export class SucursalesPage implements OnInit {
     });
     toast.present();
   }
+
+abrirEnGoogleMaps(sucursal: Sucursal) {
+  if (sucursal && sucursal.ubicacion && sucursal.ubicacion.lat && sucursal.ubicacion.lng) {
+    // Formatear las coordenadas para la URL de Google Maps
+    const coords = `${sucursal.ubicacion.lat},${sucursal.ubicacion.lng}`;
+
+    // Crear la URL de Google Maps incluyendo el nombre de la sucursal para mostrar un pin etiquetado
+    const url = `https://www.google.com/maps/search/?api=1&query=${coords}&query_place_id=${encodeURIComponent(sucursal.nombre)}`;
+
+    // Abrir la URL en una nueva pestaña del navegador
+    window.open(url, '_blank');
+  } else {
+    this.presentToast('No se pudo abrir el mapa: coordenadas no disponibles');
+  }
+}
 }
