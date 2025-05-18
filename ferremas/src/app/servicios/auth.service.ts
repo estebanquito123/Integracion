@@ -6,6 +6,8 @@ import { BehaviorSubject } from 'rxjs';
 import { Usuario } from '../models/bd.models';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { getAuth } from 'firebase/auth';
+import { FirebaseService } from './firebase.service';
+
 
 @Injectable({
   providedIn: 'root'
@@ -22,7 +24,8 @@ export class AuthService {
 
   constructor(
     private afAuth: AngularFireAuth,
-    private firestore: AngularFirestore
+    private firestore: AngularFirestore,
+    private firebaseSvc: FirebaseService
   ) {
     // Restaurar sesión desde localStorage si existe
     const usuarioGuardado = localStorage.getItem('usuario');
@@ -64,7 +67,8 @@ export class AuthService {
       console.log('Push token registrado después del login');
     } else {
       // Try to request new token
-      this.solicitarTokenPush(usuarioData.uid);
+     await PushNotifications.register();
+
     }
 
     return usuarioData;
@@ -121,30 +125,8 @@ async actualizarUsuario(uid: string, data: Partial<Usuario>): Promise<void> {
   return this.firestore.collection('usuarios').doc(uid).update(data);
 }
 
-async registrarTokenPush(token: string, uid: string): Promise<boolean> {
-  if (!uid || !token) return false;
-
-  try {
-    // Update user document with the token
-    await this.firestore.collection('usuarios').doc(uid).update({
-      pushToken: token
-    });
-
-    // Save token info for debug purposes
-    await this.firestore.collection('tokens_push').add({
-      token,
-      userId: uid,
-      platform: this.getPlatform(),
-      date: new Date().toISOString(),
-      userAgent: navigator.userAgent
-    });
-
-    console.log('Token push registrado correctamente');
-    return true;
-  } catch (error) {
-    console.error('Error al registrar token push:', error);
-    return false;
-  }
+async registrarTokenPush(token: string, uid: string): Promise<void> {
+  await this.firebaseSvc.registrarTokenPush(token, uid);
 }
 
 
@@ -168,19 +150,7 @@ async solicitarTokenPush(uid: string) {
   }
 }
 
-getPlatform(): string {
-  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
 
-  if (/android/i.test(userAgent)) {
-    return 'Android';
-  }
-
-  if (/iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream) {
-    return 'iOS';
-  }
-
-  return 'Web';
-}
 
 
 

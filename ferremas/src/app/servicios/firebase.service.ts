@@ -7,6 +7,7 @@ import { addDoc, collection, getFirestore, collectionData, query, doc, deleteDoc
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { map } from 'rxjs/operators';
 import { Observable } from 'rxjs';
+import { Platform } from '@ionic/angular';
 
 @Injectable({
   providedIn: 'root'
@@ -646,6 +647,44 @@ guardarTokenDispositivo(uid: string, token: string): Promise<void> {
     { merge: true }
   );
 }
+
+async registrarTokenPush(token: string, uid: string): Promise<boolean> {
+  if (!uid || !token) return false;
+
+  try {
+    await this.firestore.collection('usuarios').doc(uid).update({
+      pushToken: token
+    });
+
+    await this.firestore.collection('tokens_push').add({
+      token,
+      userId: uid,
+      platform: this.getPlatform(),
+      date: new Date().toISOString(),
+      userAgent: navigator.userAgent
+    });
+
+    console.log('Token push registrado correctamente');
+    return true;
+  } catch (error) {
+    console.error('Error al registrar token push:', error);
+    return false;
+  }
+}
+
+getPlatform(): string {
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+
+  if (/android/i.test(userAgent)) {
+    return 'android';
+  }
+  if (/iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream) {
+    return 'ios';
+  }
+  return 'web';
+}
+
+
 
 
 
