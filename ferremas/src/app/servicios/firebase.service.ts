@@ -640,6 +640,14 @@ updateUserData(userId: string, userData: any) {
   return this.firestore.collection('usuarios').doc(userId).update(userData);
 }
 
+guardarTokenDispositivo(uid: string, token: string): Promise<void> {
+  return this.firestore.collection('usuarios').doc(uid).set(
+    { fcmToken: token },
+    { merge: true }
+  );
+}
+
+
 
 
 

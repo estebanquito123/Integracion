@@ -1,108 +1,90 @@
-// app.component.ts
-import { Component, OnInit } from '@angular/core';
-import { PushNotifications } from '@capacitor/push-notifications';
+import { Component } from '@angular/core';
 import { Platform } from '@ionic/angular';
-import { Router } from '@angular/router';
-import { AuthService } from './servicios/auth.service';
+import { PushNotifications, PushNotificationSchema, Token, ActionPerformed } from '@capacitor/push-notifications';
 import { FirebaseService } from './servicios/firebase.service';
+import { UtilsService } from './servicios/utils.service';
 
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
-  styleUrls: ['app.component.scss'],
 })
-export class AppComponent implements OnInit {
+export class AppComponent {
   constructor(
     private platform: Platform,
-    private authService: AuthService,
     private firebaseSvc: FirebaseService,
-    private router: Router
+    private utilsSvc: UtilsService
   ) {
     this.initializeApp();
   }
 
-  ngOnInit() {
-    // Call the notification setup when the component initializes
-    if (this.platform.is('capacitor')) {
-      this.setupPushNotifications();
-    }
+  async initializeApp() {
+    await this.platform.ready();
+    this.setupPushChannels();
+    this.setupPushNotifications();
   }
 
-  initializeApp() {
-    this.platform.ready().then(() => {
-      // Check if we're running on a mobile device with Capacitor
-      if (this.platform.is('capacitor')) {
-        this.setupPushNotifications();
-      }
+  async setupPushChannels() {
+    await PushNotifications.createChannel({
+      id: 'vendedor_channel',
+      name: 'Notificaciones para vendedor',
+      importance: 5,
+      sound: 'default',
+      description: 'Pedidos nuevos'
+    });
+
+    await PushNotifications.createChannel({
+      id: 'cliente_channel',
+      name: 'Notificaciones para cliente',
+      importance: 5,
+      sound: 'default',
+      description: 'Pedidos confirmados o despachados'
+    });
+
+    await PushNotifications.createChannel({
+      id: 'bodeguero_channel',
+      name: 'Notificaciones para bodeguero',
+      importance: 5,
+      sound: 'default',
+      description: 'Pedidos para preparación'
+    });
+
+    await PushNotifications.createChannel({
+      id: 'test_channel',
+      name: 'Canal de prueba',
+      importance: 5,
+      sound: 'default'
     });
   }
 
-  async setupPushNotifications() {
-    try {
-      // Request permission to use push notifications
-      // iOS will prompt user and return if they granted permission or not
-      // Android will just grant without prompting
-      const result = await PushNotifications.requestPermissions();
-
+  setupPushNotifications() {
+    PushNotifications.requestPermissions().then(result => {
       if (result.receive === 'granted') {
-        // Register with Apple / Google to receive push via APNS/FCM
-        await PushNotifications.register();
-
-        // On success, we should be able to receive notifications
-        PushNotifications.addListener('registration',
-          async (token: { value: string }) => {
-            console.log('Push registration success, token: ' + token.value);
-
-            // Store token in your service/localStorage
-            // And register with your backend server
-            const currentUser = await this.authService.usuarioCompleto$.toPromise();
-            if (currentUser && currentUser.uid) {
-              await this.authService.registrarTokenPush(token.value, currentUser.uid);
-              console.log('Token registered for user', currentUser.uid);
-            } else {
-              // Save token temporarily to apply later when user logs in
-              localStorage.setItem('pushToken', token.value);
-              console.log('Token saved to localStorage for later use');
-            }
-          }
-        );
-
-        // Method called when notification is received
-        PushNotifications.addListener('pushNotificationReceived',
-          (notification: any) => {
-            console.log('Push notification received: ', notification);
-            // Optionally display a local notification or update UI
-          }
-        );
-
-        // Method called when tapping on a notification
-        PushNotifications.addListener('pushNotificationActionPerformed',
-          (notification: any) => {
-            console.log('Push notification action performed', notification);
-
-            // Extract data from notification
-            const data = notification.notification.data;
-            console.log('Notification data: ', data);
-
-            // Handle navigation based on notification data
-            if (data.pedidoId) {
-              if (data.tipo === 'pedido_listo') {
-                this.router.navigate(['/mis-pedidos'], {
-                  queryParams: {
-                    orden: data.ordenCompra
-                  }
-                });
-              } else if (data.tipo === 'nuevo_pedido') {
-                this.router.navigate(['/pedidos-pendientes']);
-              }
-            }
-          }
-        );
-      } else {
-        console.log('Push notifications not granted');
+        PushNotifications.register();
       }
-    } catch (error) {
-      console.error('Error setting up push notifications: ', error);
-    }
+    });
+
+    PushNotifications.addListener('registration', async (token: Token) => {
+      const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+      if (usuario?.uid) {
+        await this.firebaseSvc.guardarTokenDispositivo(usuario.uid, token.value);
+      }
+    });
+
+    PushNotifications.addListener('registrationError', err => {
+      console.error('Error al registrar FCM:', err);
+    });
+
+    PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
+      this.utilsSvc.presentToast({
+        message: `${notification.title}: ${notification.body}`,
+        duration: 3000,
+        color: 'primary'
+      });
+    });
+
+    PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
+      console.log('Notificación tocada:', notification);
+      // Redirigir según los datos si se desea
+    });
   }
 }
