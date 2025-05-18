@@ -15,6 +15,56 @@ export class FirebaseService {
   private auth = inject(AngularFireAuth);
   private firestore = inject(AngularFirestore);
 
+  async enviarNotificacionAlCliente(clienteId: string, titulo: string, mensaje: string, datos: any = {}) {
+  try {
+    if (!clienteId) {
+      console.error('ID de cliente no proporcionado');
+      return false;
+    }
+
+    // Buscar el usuario en Firestore para obtener su token
+    const clienteSnap = await this.firestore.collection('usuarios')
+      .doc(clienteId).get().toPromise();
+
+    const cliente = clienteSnap.data() as Usuario;
+
+    if (!cliente || !cliente.pushToken) {
+      console.warn('Cliente sin token de notificación:', clienteId);
+      return false;
+    }
+
+    // Guardar la notificación en la colección de notificaciones
+    await this.firestore.collection('notificacionesCliente').add({
+      titulo,
+      mensaje,
+      clienteId,
+      fecha: new Date().toISOString(),
+      leido: false,
+      datos
+    });
+
+    // Enviar notificación push mediante nuestra API
+    const response = await fetch('https://integracion-7xjk.onrender.com/api/notificar-cliente', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: cliente.pushToken,
+        title: titulo,
+        body: mensaje,
+        data: datos
+      })
+    });
+
+    const result = await response.json();
+    console.log('Resultado de notificación push:', result);
+
+    return result.success;
+  } catch (error) {
+    console.error('Error al enviar notificación al cliente:', error);
+    return false;
+  }
+}
+
   sendRecoveryEmail(email: string) {
     return this.auth.sendPasswordResetEmail(email);
   }
@@ -310,15 +360,28 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
   }
 
   async enviarNotificacionAlVendedor(pedido: {
-    productos: any[];
-    metodoPago: string;
-    retiro: string;
-    direccion: string;
-    ordenCompra: string;
-  }) {
+  productos: any[];
+  metodoPago: string;
+  retiro: string;
+  direccion: string;
+  ordenCompra: string;
+}) {
+  try {
     const vendedoresSnap = await this.firestore.collection('usuarios', ref =>
       ref.where('rol', '==', 'vendedor')
     ).get().toPromise();
+
+    // Guardar en colección de notificaciones
+    await this.firestore.collection('notificacionesVendedor').add({
+      titulo: '🛒 Nuevo Pedido',
+      mensaje: `Orden: ${pedido.ordenCompra} - Método: ${pedido.metodoPago}`,
+      fecha: new Date().toISOString(),
+      leido: false,
+      ordenCompra: pedido.ordenCompra,
+      tipo: 'nuevo_pedido'
+    });
+
+    let notificacionesEnviadas = 0;
 
     for (const doc of vendedoresSnap.docs) {
       const vendedor = doc.data() as Usuario;
@@ -326,7 +389,7 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
         const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
         const tipoEntrega = pedido.retiro === 'domicilio' ? 'Despacho a domicilio' : 'Retiro en tienda';
 
-        await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
+        const response = await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -338,13 +401,27 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
               metodoPago: pedido.metodoPago,
               retiro: pedido.retiro,
               direccion: pedido.direccion,
-              productos: JSON.stringify(pedido.productos)
+              productos: JSON.stringify(pedido.productos),
+              tipo: 'nuevo_pedido'
             }
           })
         });
+
+        const result = await response.json();
+        if (result.success) {
+          notificacionesEnviadas++;
+        }
+
+        console.log(`Notificación enviada a vendedor ${vendedor.nombreCompleto}:`, result);
       }
     }
+
+    return notificacionesEnviadas > 0;
+  } catch (error) {
+    console.error('Error al enviar notificación al vendedor:', error);
+    return false;
   }
+}
 
   getNotificacionesVendedor() {
     return this.firestore.collection('notificacionesVendedor', ref =>
@@ -447,6 +524,7 @@ async notificarClientePedidoListo(pedido: Pedido) {
         pedido.clienteId = clienteEncontrado;
       } else {
         console.warn('No se pudo identificar al cliente para la orden:', pedido.ordenCompra);
+        return false;
       }
     }
 
@@ -458,7 +536,7 @@ async notificarClientePedidoListo(pedido: Pedido) {
       fecha: new Date().toISOString(),
       pedidoId: pedido.id,
       ordenCompra: pedido.ordenCompra,
-      clienteId: pedido.clienteId || 'desconocido',
+      clienteId: pedido.clienteId,
       tipo: 'pedido_listo'
     });
 
@@ -470,7 +548,7 @@ async notificarClientePedidoListo(pedido: Pedido) {
       const cliente = clienteSnap.data() as Usuario;
 
       if (cliente && cliente.pushToken) {
-        await fetch('https://integracion-7xjk.onrender.com/notificar-cliente', {
+        const response = await fetch('https://integracion-7xjk.onrender.com/api/notificar-cliente', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -484,6 +562,15 @@ async notificarClientePedidoListo(pedido: Pedido) {
             }
           })
         });
+
+        const result = await response.json();
+        console.log('Resultado notificación cliente:', result);
+
+        if (!result.success) {
+          console.warn('Error al enviar push al cliente:', result.error);
+        }
+
+        return result.success;
       }
     }
 

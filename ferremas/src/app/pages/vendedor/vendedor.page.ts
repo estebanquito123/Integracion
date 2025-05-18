@@ -227,4 +227,20 @@ async notificarClientePedidoListo(pedido: Pedido) {
 
   await alert.present();
 }
+async validarPushToken(token: string): Promise<boolean> {
+  try {
+    const response = await fetch('https://integracion-7xjk.onrender.com/api/test-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+
+    const result = await response.json();
+    return result.success === true;
+  } catch (error) {
+    console.error('Error validando token push:', error);
+    return false;
+  }
+}
+
 }

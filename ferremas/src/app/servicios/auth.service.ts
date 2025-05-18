@@ -56,6 +56,17 @@ export class AuthService {
     this.usuarioSubject.next(usuarioData.nombreCompleto || '');
     localStorage.setItem('usuario', JSON.stringify(usuarioData));
 
+    // Check if there's a pending push token to register
+    const pendingToken = localStorage.getItem('pushToken');
+    if (pendingToken) {
+      await this.registrarTokenPush(pendingToken, usuarioData.uid);
+      localStorage.removeItem('pushToken');
+      console.log('Push token registrado después del login');
+    } else {
+      // Try to request new token
+      this.solicitarTokenPush(usuarioData.uid);
+    }
+
     return usuarioData;
   } catch (error) {
     this.isAuthenticatedSubject.next(false);
@@ -87,7 +98,7 @@ export class AuthService {
         nombreCompleto,
         email,
         password: '', // Nunca guardar contraseñas en Firestore
-        rol
+        rol,
       };
 
       await this.firestore.collection('usuarios').doc(uid).set(nuevoUsuario);
@@ -106,15 +117,69 @@ export class AuthService {
     }
   }
 
-async registrarTokenPush(token: string, uid: string) {
-  if (!uid || !token) return;
-  await this.firestore.collection('usuarios').doc(uid).update({
-    pushToken: token
-  });
-}
-
 async actualizarUsuario(uid: string, data: Partial<Usuario>): Promise<void> {
   return this.firestore.collection('usuarios').doc(uid).update(data);
+}
+
+async registrarTokenPush(token: string, uid: string): Promise<boolean> {
+  if (!uid || !token) return false;
+
+  try {
+    // Update user document with the token
+    await this.firestore.collection('usuarios').doc(uid).update({
+      pushToken: token
+    });
+
+    // Save token info for debug purposes
+    await this.firestore.collection('tokens_push').add({
+      token,
+      userId: uid,
+      platform: this.getPlatform(),
+      date: new Date().toISOString(),
+      userAgent: navigator.userAgent
+    });
+
+    console.log('Token push registrado correctamente');
+    return true;
+  } catch (error) {
+    console.error('Error al registrar token push:', error);
+    return false;
+  }
+}
+
+
+async solicitarTokenPush(uid: string) {
+  try {
+    // If using Capacitor and PushNotifications API is available
+    // This is just to trigger the registration flow
+    if ('PushNotifications' in window) {
+      const PushNotifications = (window as any).PushNotifications;
+
+      const permStatus = await PushNotifications.requestPermissions();
+      if (permStatus.receive === 'granted') {
+        await PushNotifications.register();
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error('Error al solicitar permisos de notificaciones:', error);
+    return false;
+  }
+}
+
+getPlatform(): string {
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+
+  if (/android/i.test(userAgent)) {
+    return 'Android';
+  }
+
+  if (/iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream) {
+    return 'iOS';
+  }
+
+  return 'Web';
 }
 
 
