@@ -1,0 +1,3967 @@
+<!-- admin.page.html -->
+<ion-content>
+  <app-header></app-header>
+  <ion-list color="hsl(48, 55%, 73%)">
+    <ion-item class="product-item" *ngFor="let p of productos" color="hsl(48, 55%, 73%) ">
+      <div class="image-preview">
+        <img [src]="p.imagen">
+      </div>
+      <ion-label color="hsl(48, 55%, 73%) ">
+        <div class="name">{{p.nombre}}</div>
+        <div class="data">
+          <strong>Precio: </strong> {{p.precio | currency: 'CLP'}} <br>
+          <strong>Stock: </strong> {{p.stock}}
+        </div>
+      </ion-label>
+      <!-- Botón para editar producto -->
+      <ion-button (click)="addUpdateProduct(p)" color="primary" fill="clear">
+        <ion-icon slot="icon-only" name="create-outline"></ion-icon> Editar
+      </ion-button>
+      <!-- Botón para eliminar producto -->
+      <ion-button (click)="deleteProduct(p.id)" color="danger" fill="clear">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon> Eliminar
+      </ion-button>
+    </ion-item>
+  </ion-list>
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button (click)="addUpdateProduct()">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+</ion-content>
+<app-footer></app-footer>
+
+
+
+
+// admin.page.ts
+import { Component, inject, OnInit } from '@angular/core';
+import { Producto, Usuario } from 'src/app/models/bd.models';
+import { FirebaseService } from 'src/app/servicios/firebase.service';
+import { UtilsService } from 'src/app/servicios/utils.service';
+import { AddUpdateProductComponent } from 'src/app/shared/add-update-product/add-update-product.component';
+
+@Component({
+  selector: 'app-admin',
+  templateUrl: './admin.page.html',
+  styleUrls: ['./admin.page.scss'],
+})
+export class AdminPage implements OnInit {
+  firebaseSvc = inject(FirebaseService);
+  utilsSvc = inject(UtilsService);
+
+  productos: Producto[] = [];
+
+  constructor() {}
+
+  ngOnInit() {}
+
+
+  ionViewWillEnter() {
+    this.getProducts();
+  }
+
+  async getProducts() {
+    // Mostrar el loading spinner
+    const loading = await this.utilsSvc.loading();
+
+    const sub = this.firebaseSvc.getProductos().subscribe({
+      next: (res: Producto[]) => {
+        console.log(res);
+        this.productos = res;
+        sub.unsubscribe();
+      },
+      error: (error) => {
+        console.log('Error al obtener productos:', error);
+      },
+      complete: () => {
+        // Ocultar el loading cuando se complete la carga
+        loading.dismiss();
+      }
+    });
+  }
+
+
+  // Mostrar modal para agregar o actualizar producto
+  addUpdateProduct(producto?: Producto) {
+    this.utilsSvc.presentModal({
+      component: AddUpdateProductComponent,
+      componentProps: { producto }
+    }).then((result) => {
+      if (result?.success) {
+        this.getProducts(); // Refresca la lista de productos después de agregar o editar
+      }
+    });
+  }
+
+  // Eliminar producto de la colección global `productos`
+  deleteProduct(productId: string) {
+    this.firebaseSvc.deleteProducto(productId).then(() => {
+      this.utilsSvc.presentToast({
+        message: 'Producto eliminado exitosamente',
+        duration: 2000,
+        color: 'success',
+        position: 'middle',
+        icon: 'checkmark-circle-outline'
+      });
+      this.getProducts(); // Refresca la lista de productos después de eliminar
+    }).catch(error => {
+      this.utilsSvc.presentToast({
+        message: error.message,
+        duration: 2000,
+        color: 'danger',
+        position: 'middle',
+        icon: 'alert-circle-outline'
+      });
+    });
+  }
+}
+
+
+
+<!-- bodeguero.page.html -->
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Gestión de Bodega</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-segment [(ngModel)]="segmento" (ionChange)="cambiarSegmento()">
+    <ion-segment-button value="pendientes">
+      <ion-label>Por Preparar</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="enPreparacion">
+      <ion-label>En Preparación</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="preparados">
+      <ion-label>Preparados</ion-label>
+    </ion-segment-button>
+  </ion-segment>
+
+  <!-- Pedidos pendientes de preparación -->
+  <div *ngIf="segmento === 'pendientes'">
+    <ion-list *ngIf="pedidosPorPreparar.length > 0; else sinPendientes">
+      <ion-item *ngFor="let pedido of pedidosPorPreparar">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Método de entrega:</strong> {{ pedido.retiro }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <div *ngIf="pedido.productos?.length">
+            <p><strong>Productos a preparar:</strong></p>
+            <ul>
+              <li *ngFor="let p of pedido.productos">
+                {{ p.nombre }} - ${{ p.precio }}
+              </li>
+            </ul>
+          </div>
+        </ion-label>
+        <ion-buttons slot="end">
+          <ion-button color="primary" (click)="iniciarPreparacion(pedido)">
+            <ion-icon name="construct-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinPendientes>
+      <ion-text color="medium" class="ion-text-center">
+        <p>No hay pedidos pendientes por preparar.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+
+  <!-- Pedidos en preparación -->
+  <div *ngIf="segmento === 'enPreparacion'">
+    <ion-list *ngIf="pedidosEnPreparacion.length > 0; else sinEnPreparacion">
+      <ion-item *ngFor="let pedido of pedidosEnPreparacion">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Estado:</strong> En preparación</p>
+          <p><strong>Entrega:</strong> {{ pedido.retiro }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <div *ngIf="pedido.productos?.length">
+            <p><strong>Productos:</strong></p>
+            <ul>
+              <li *ngFor="let p of pedido.productos">
+                {{ p.nombre }}
+              </li>
+            </ul>
+          </div>
+        </ion-label>
+        <ion-buttons slot="end">
+          <ion-button color="success" (click)="marcarComoPedidoListo(pedido)">
+            <ion-icon name="checkmark-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinEnPreparacion>
+      <ion-text color="medium" class="ion-text-center">
+        <p>No hay pedidos en preparación.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+
+  <!-- Pedidos preparados -->
+  <div *ngIf="segmento === 'preparados'">
+    <ion-list *ngIf="pedidosPreparados.length > 0; else sinPreparados">
+      <ion-item *ngFor="let pedido of pedidosPreparados">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Estado:</strong> Listo para entrega</p>
+          <p><strong>Entrega:</strong> {{ pedido.retiro }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <div *ngIf="pedido.productos?.length">
+            <p><strong>Productos:</strong></p>
+            <ul>
+              <li *ngFor="let p of pedido.productos">
+                {{ p.nombre }}
+              </li>
+            </ul>
+          </div>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinPreparados>
+      <ion-text color="medium" class="ion-text-center">
+        <p>No hay pedidos preparados.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+</ion-content>
+<app-footer></app-footer>
+
+
+// bodeguero.page.ts
+import { Component, OnInit, inject } from '@angular/core';
+import { FirebaseService } from 'src/app/servicios/firebase.service';
+import { EstadoPedido, Pedido } from 'src/app/models/bd.models';
+import { UtilsService } from 'src/app/servicios/utils.service';
+import { AlertController } from '@ionic/angular';
+
+@Component({
+  selector: 'app-bodeguero',
+  templateUrl: './bodeguero.page.html',
+  styleUrls: ['./bodeguero.page.scss'],
+})
+export class BodegueroPage implements OnInit {
+  firebaseSvc = inject(FirebaseService);
+  utilsSvc = inject(UtilsService);
+  alertCtrl = inject(AlertController);
+
+  segmento: string = 'pendientes';
+  pedidosPorPreparar: Pedido[] = [];
+  pedidosEnPreparacion: Pedido[] = [];
+  pedidosPreparados: Pedido[] = [];
+
+  ngOnInit() {
+    this.cargarPedidos();
+  }
+
+  ionViewWillEnter() {
+    this.cargarPedidos();
+  }
+
+  cargarPedidos() {
+    this.firebaseSvc.getPedidosBodega().subscribe(data => {
+      // Filtrar los pedidos según su estado
+      this.pedidosPorPreparar = data.filter(p => p.estadoPedido === EstadoPedido.ACEPTADO);
+      this.pedidosEnPreparacion = data.filter(p => p.estadoPedido === EstadoPedido.EN_PREPARACION);
+      this.pedidosPreparados = data.filter(p => p.estadoPedido === EstadoPedido.PREPARADO);
+    });
+  }
+
+  cambiarSegmento() {
+    // Este método se llama cuando el usuario cambia de segmento
+    // No necesita implementación adicional
+  }
+
+  async iniciarPreparacion(pedido: Pedido) {
+    const loading = await this.utilsSvc.loading();
+    await loading.present();
+
+    try {
+      // Actualizar el estado del pedido a EN_PREPARACION
+      await this.firebaseSvc.actualizarEstadoPedido(
+        pedido.id,
+        EstadoPedido.EN_PREPARACION
+      );
+
+      this.utilsSvc.presentToast({
+        message: 'Pedido marcado como "En preparación"',
+        duration: 2000,
+        color: 'success'
+      });
+    } catch (error) {
+      console.error('Error al actualizar estado del pedido:', error);
+      this.utilsSvc.presentToast({
+        message: 'Error al procesar el pedido',
+        duration: 2000,
+        color: 'danger'
+      });
+    } finally {
+      loading.dismiss();
+    }
+  }
+
+  async marcarComoPedidoListo(pedido: Pedido) {
+    const alert = await this.alertCtrl.create({
+      header: 'Finalizar Preparación',
+      message: '¿Confirmas que el pedido está listo para entregar?',
+      buttons: [
+        {
+          text: 'Cancelar',
+          role: 'cancel'
+        },
+        {
+          text: 'Confirmar',
+          handler: async () => {
+            const loading = await this.utilsSvc.loading();
+            await loading.present();
+
+            try {
+              // Actualizar el estado del pedido a PREPARADO
+              await this.firebaseSvc.actualizarEstadoPedido(
+                pedido.id,
+                EstadoPedido.PREPARADO
+              );
+
+              // Notificar al vendedor que el pedido está listo
+              await this.firebaseSvc.notificarPedidoPreparado(pedido);
+
+              this.utilsSvc.presentToast({
+                message: 'Pedido marcado como preparado',
+                duration: 2000,
+                color: 'success'
+              });
+            } catch (error) {
+              console.error('Error al completar pedido:', error);
+              this.utilsSvc.presentToast({
+                message: 'Error al marcar pedido como preparado',
+                duration: 2000,
+                color: 'danger'
+              });
+            } finally {
+              loading.dismiss();
+            }
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+}
+
+
+<!-- ✅ carro.page.html -->
+<app-header></app-header>
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/cliente"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Carrito de Compras</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div *ngIf="productos.length > 0; else vacio">
+    <ion-list>
+      <ion-item *ngFor="let p of productos; let i = index">
+        <ion-thumbnail slot="start">
+          <img [src]="p.imagen" alt="{{ p.nombre }}">
+        </ion-thumbnail>
+        <ion-label>
+          <h2>{{ p.nombre }}</h2>
+          <p>Precio: {{ p.precio | currency: 'CLP' }}</p>
+          <p>Cantidad: {{p.cantidad}}</p>
+        </ion-label>
+        <ion-button fill="clear" color="danger" (click)="eliminarProducto(i)">
+          <ion-icon name="trash-outline"></ion-icon>
+        </ion-button>
+      </ion-item>
+    </ion-list>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Resumen de compra</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item lines="none">
+          <ion-label>Total a pagar:</ion-label>
+          <ion-text slot="end" color="primary">
+            <h2>{{ total | currency: 'CLP' }}</h2>
+          </ion-text>
+        </ion-item>
+
+        <!-- Botón para finalizar compra (ahora abre opciones de retiro y pago) -->
+        <ion-button expand="block" color="success" (click)="finalizarCompra()" class="ion-margin-top">
+          <ion-icon name="card-outline" slot="start"></ion-icon>
+          Finalizar compra
+        </ion-button>
+
+        <ion-button expand="block" color="danger" (click)="vaciarCarrito()" class="ion-margin-top">
+          <ion-icon name="trash-outline" slot="start"></ion-icon>
+          Vaciar carrito
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+  <ng-template #vacio>
+    <div class="empty-cart">
+      <ion-icon name="cart-outline" size="large"></ion-icon>
+      <h2>Tu carrito está vacío</h2>
+      <p>Agrega productos para continuar</p>
+      <ion-button expand="block" [routerLink]="['/cliente']">
+        <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
+        Volver a la tienda
+      </ion-button>
+    </div>
+  </ng-template>
+<app-footer></app-footer>
+</ion-content>
+
+
+// ✅ carro.page.ts
+import { Component, OnInit, inject } from '@angular/core';
+import { CarritoService } from 'src/app/servicios/carrito.service';
+import { Producto, EstadoPago, EstadoPedido } from 'src/app/models/bd.models';
+import { UtilsService } from 'src/app/servicios/utils.service';
+import { Router } from '@angular/router';
+import { FirebaseService } from 'src/app/servicios/firebase.service';
+import { TransbankService } from 'src/app/servicios/transbank.service';
+import { AlertController } from '@ionic/angular';
+import { AuthService } from 'src/app/servicios/auth.service';
+import { MetodoRetiroModal } from 'src/app/shared/metodo-retiro-modal/metodo-retiro-modal.component';
+import { ItemCarrito } from 'src/app/models/bd.models';
+
+
+
+@Component({
+  selector: 'app-carro',
+  templateUrl: './carro.page.html',
+  styleUrls: ['./carro.page.scss'],
+})
+export class CarroPage implements OnInit {
+  productos: Producto[] = [];
+  ItemCarrito: ItemCarrito[] = [];
+  total = 0;
+
+  carritoService = inject(CarritoService);
+  utilsSvc = inject(UtilsService);
+  router = inject(Router);
+  firebaseSvc = inject(FirebaseService);
+  transbankService = inject(TransbankService);
+  alertController = inject(AlertController);
+  authService = inject(AuthService);
+
+  ngOnInit() {
+    this.actualizarCarrito();
+    this.checkPendingTransaction();
+  }
+
+  ionViewWillEnter() {
+    this.actualizarCarrito();
+    this.checkPendingTransaction();
+  }
+
+  actualizarCarrito() {
+  this.productos = this.carritoService.getItems();
+  this.total = this.carritoService.getTotal();
+}
+
+  eliminarProducto(index: number) {
+    this.carritoService.removeItem(index);
+    this.actualizarCarrito();
+    this.utilsSvc.presentToast({
+      message: 'Producto eliminado del carrito',
+      duration: 1500,
+      color: 'success',
+      position: 'bottom'
+    });
+  }
+
+  vaciarCarrito() {
+    this.carritoService.clearCart();
+    this.productos = [];
+    this.total = 0;
+    this.utilsSvc.presentToast({
+      message: 'Carrito vaciado correctamente',
+      duration: 1500,
+      color: 'success',
+      position: 'bottom'
+    });
+  }
+
+  async finalizarCompra() {
+  const datos = await this.utilsSvc.presentModal({
+    component: MetodoRetiroModal,
+  });
+
+  if (!datos) return;
+
+  const tipoRetiro = datos.tipoRetiro;
+  const direccion = datos.tipoRetiro === 'domicilio' ? datos.direccion : `Sucursal: ${datos.sucursal}`;
+
+  this.elegirMetodoPago(tipoRetiro, direccion);
+}
+
+
+  async elegirMetodoPago(retiro: string, direccion: string) {
+    const alert = await this.alertController.create({
+      header: 'Selecciona el método de pago',
+      buttons: [
+        {
+          text: 'Transferencia',
+          handler: () => this.pagarPorTransferencia(retiro, direccion)
+        },
+        {
+          text: 'Webpay',
+          handler: () => this.pagarConTransbank(retiro, direccion)
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  async pagarConTransbank(retiro: string, direccion: string) {
+    const loading = await this.utilsSvc.loading();
+    await loading.present();
+
+    try {
+      if (this.productos.length === 0 || this.total <= 0) {
+        throw new Error('Carrito vacío o monto inválido');
+      }
+
+      await this.transbankService.procesarPago(
+        this.total,
+        this.productos,
+        retiro,
+        direccion
+      );
+
+    } catch (error) {
+      console.error('Error al pagar con Transbank:', error);
+      this.utilsSvc.presentToast({
+        message: 'Error en el pago: ' + error.message,
+        duration: 3000,
+        color: 'danger'
+      });
+    } finally {
+      loading.dismiss();
+    }
+  }
+
+async pagarPorTransferencia(retiro: string, direccion: string) {
+  const loading = await this.utilsSvc.loading();
+  await loading.present();
+
+  try {
+    const ordenCompra = this.transbankService.generarOrdenCompra();
+
+    // Calcular el monto total del pedido
+    const montoTotal = this.carritoService.getTotal();
+
+    // Obtener información del usuario actual
+    const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+    const clienteId = usuario?.uid || '';
+
+    // Convertir productos del carrito a ProductoPedido con validación
+    const productosPedido = this.productos.map(producto => {
+  const itemCarrito = this.carritoService.getItems().find(item => item.id === producto.id);
+  const cantidad = itemCarrito?.cantidad ?? 1;
+
+  return {
+    id: producto.id || '',
+    nombre: producto.nombre || 'Sin nombre',
+    precio: producto.precio ?? 0,
+    cantidad: cantidad,
+    imagen: producto.imagen || '',
+    stock: producto.stock ?? 0
+  };
+});
+
+    // Crear el objeto pedido sin valores undefined
+    const pedidoData = {
+      productos: productosPedido,
+      ordenCompra,
+      metodoPago: 'transferencia',
+      direccion: direccion || '',
+      retiro: retiro || '',
+      fecha: new Date().toISOString(),
+      estadoPago: EstadoPago.PENDIENTE,
+      estadoPedido: EstadoPedido.PENDIENTE,
+      montoTotal: montoTotal ?? 0,
+      clienteId: clienteId,
+      verificadoPorContador: false
+    };
+
+    // Validación final para evitar errores
+    Object.entries(pedidoData).forEach(([key, value]) => {
+      if (value === undefined) {
+        throw new Error(`Campo ${key} está undefined`);
+      }
+    });
+
+    // Notificar al contador sobre el pago pendiente
+    await this.firebaseSvc.notificarPagoPendienteAContador(pedidoData);
+    // Guardar la compra en el historial del cliente
+    for (const producto of productosPedido) {
+      const compra = {
+        productoId: producto.id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+        cantidad: producto.cantidad,
+        fecha: new Date().toISOString(),
+        ordenCompra,
+        estadoPago: EstadoPago.PENDIENTE,
+        metodoPago: 'transferencia',
+        direccion: direccion || '',
+        retiro: retiro || ''
+      };
+
+      await this.firebaseSvc.guardarCompra(compra);
+    }
+
+    this.carritoService.clearCart();
+    this.router.navigate(['/cliente']);
+
+    // Mostrar instrucciones para transferencia
+    const alert = await this.alertController.create({
+      header: 'Instrucciones de Pago',
+      subHeader: 'Realiza una transferencia con los siguientes datos:',
+      message: `
+        Banco: Banco Estado
+        Cuenta:Cuenta Corriente
+        Número: 123456789
+        RUT: 12.345.678-9
+        Nombre: Tienda Online SpA
+        Email:pagos@tiendaonline.cl
+        Monto: $${montoTotal}
+        Orden de Compra: ${ordenCompra}
+        El contador confirmará tu pago a la brevedad.
+      `,
+      buttons: ['Entendido']
+    });
+    await alert.present();
+
+    this.utilsSvc.presentToast({
+      message: 'Pedido registrado. Esperando confirmación de transferencia.',
+      duration: 3000,
+      color: 'success'
+    });
+
+  } catch (error) {
+    console.error('Error en pago por transferencia:', error);
+    this.utilsSvc.presentToast({
+      message: 'Error al registrar pedido: ' + error.message,
+      duration: 2000,
+      color: 'danger'
+    });
+  } finally {
+    loading.dismiss();
+  }
+}
+
+
+async checkPendingTransaction() {
+  const pendingTransaction = localStorage.getItem('currentTransaction');
+  if (pendingTransaction) {
+    const loading = await this.utilsSvc.loading();
+    await loading.present();
+
+    try {
+      const transData = await this.firebaseSvc.obtenerTransaccionPorOrden(pendingTransaction);
+
+      if (transData && transData.estado === 'pagado') {
+        // Transaction was successful but we didn't finish the process
+        this.carritoService.clearCart();
+        this.router.navigate(['/cliente']);
+
+        this.utilsSvc.presentToast({
+          message: 'Tu pedido anterior fue procesado correctamente',
+          duration: 3000,
+          color: 'success'
+        });
+
+        localStorage.removeItem('currentTransaction');
+        localStorage.removeItem('carritoWebpay');
+        localStorage.removeItem('direccionWebpay');
+        localStorage.removeItem('retiroWebpay');
+      } else if (transData && transData.estado === 'iniciada') {
+        // Transaction is still pending
+        const alert = await this.alertController.create({
+          header: 'Transacción pendiente',
+          message: '¿Deseas continuar con el pago pendiente o cancelarlo?',
+          buttons: [
+            {
+              text: 'Cancelar',
+              role: 'cancel',
+              handler: () => {
+                localStorage.removeItem('currentTransaction');
+                localStorage.removeItem('carritoWebpay');
+                localStorage.removeItem('direccionWebpay');
+                localStorage.removeItem('retiroWebpay');
+              }
+            },
+            {
+              text: 'Continuar',
+              handler: () => {
+                // Reconstruct the cart and redirect to checkout
+                if (transData.productos && Array.isArray(transData.productos)) {
+                  // Clear current cart first
+                  this.carritoService.clearCart();
+
+                  // Add each product individually
+                  transData.productos.forEach((producto: Producto) => {
+                    this.carritoService.addItem(producto);
+                  });
+
+                  this.actualizarCarrito();
+                  this.finalizarCompra();
+                }
+              }
+            }
+          ]
+        });
+        await alert.present();
+      }
+    } catch (error) {
+      console.error('Error al verificar transacción pendiente:', error);
+    } finally {
+      loading.dismiss();
+    }
+  }
+}
+
+
+}
+
+
+
+<!-- cliente.page.html -->
+<app-header></app-header>
+<ion-content>
+  <ion-list>
+    <ion-item class="product-item" *ngFor="let producto of productos" color="hsl(48, 55%, 73%)">
+      <div class="image-preview">
+        <img [src]="producto.imagen">
+      </div>
+      <ion-label>
+        <div class="name">{{producto.nombre}}</div>
+        <div class="data">
+          <strong>Precio: </strong> {{producto.precio | currency: 'CLP'}} <br>
+          <strong>Stock: </strong> {{producto.stock}}
+        </div>
+      </ion-label>
+      <ion-button (click)="agregarAlCarrito(producto)">
+        <ion-icon name="cart-outline" slot="start"></ion-icon>
+        Agregar al carrito
+      </ion-button>
+    </ion-item>
+  </ion-list>
+
+  <!-- Botón flotante para ver el carrito -->
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button [routerLink]="['/carro']">
+      <ion-icon name="cart"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+<app-footer></app-footer>
+</ion-content>
+
+
+
+// cliente.page.ts
+import { Component, inject, OnInit } from '@angular/core';
+import { FirebaseService } from 'src/app/servicios/firebase.service';
+import { UtilsService } from 'src/app/servicios/utils.service';
+import { Producto } from 'src/app/models/bd.models';
+import { Router } from '@angular/router';
+import { CarritoService } from 'src/app/servicios/carrito.service';
+import { ToastController } from '@ionic/angular';
+
+@Component({
+  selector: 'app-cliente',
+  templateUrl: './cliente.page.html',
+  styleUrls: ['./cliente.page.scss'],
+})
+export class ClientePage implements OnInit {
+  firebaseSvc = inject(FirebaseService);
+  utilsSvc = inject(UtilsService);
+  router = inject(Router);
+  carritoService = inject(CarritoService); // Corregido: inyección correcta del servicio
+  toastController = inject(ToastController); // Corregido: inyección correcta del servicio
+
+  productos: Producto[] = [];
+  notificacionesNoLeidas: number = 0;
+
+  ngOnInit() {
+    this.getProductos();
+  }
+
+  async getProductos() {
+    const loading = await this.utilsSvc.loading();
+    const sub = this.firebaseSvc.getProductos().subscribe({
+      next: (res) => {
+        this.productos = res as Producto[];
+        sub.unsubscribe();
+        loading.dismiss();
+      },
+      error: (err) => {
+        console.log(err);
+        loading.dismiss();
+      }
+    });
+  }
+
+  agregarAlCarrito(producto: Producto) {
+    this.carritoService.addItem(producto);
+    this.mostrarToast('Producto agregado al carrito');
+  }
+
+  async mostrarToast(mensaje: string) {
+    const toast = await this.toastController.create({
+      message: mensaje,
+      duration: 1500,
+      position: 'bottom',
+      color: 'success',
+    });
+    toast.present();
+  }
+}
+
+
+
+<!-- contador.page.html -->
+ <app-header></app-header>
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Panel del Contador</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-segment [(ngModel)]="segmento" (ionChange)="cambiarSegmento()">
+    <ion-segment-button value="transferencias">
+      <ion-label>Pagos por Transferencia</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="entregados">
+      <ion-label>Pedidos Entregados</ion-label>
+    </ion-segment-button>
+  </ion-segment>
+
+  <!-- Pagos por transferencia pendientes -->
+  <div *ngIf="segmento === 'transferencias'">
+    <ion-list *ngIf="pedidosPendientesPago.length > 0; else sinTransferencias">
+      <ion-item *ngFor="let pedido of pedidosPendientesPago">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Monto:</strong> ${{ pedido.montoTotal || calcularMontoTotalPedido(pedido) }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <p><strong>Retiro:</strong> {{ pedido.retiro }}</p>
+          <p><strong>Fecha:</strong> {{ formatearFecha(pedido.fecha) }}</p>
+        </ion-label>
+        <ion-buttons slot="end">
+          <ion-button color="success" (click)="confirmarPagoTransferencia(pedido)">
+            <ion-icon name="checkmark-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+          <ion-button color="danger" (click)="rechazarPagoTransferencia(pedido)">
+            <ion-icon name="close-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinTransferencias>
+      <ion-text color="medium">
+        <p class="ion-text-center">No hay pagos por transferencia pendientes.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+
+  <!-- Pedidos entregados y resumen -->
+  <div *ngIf="segmento === 'entregados'">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Resumen Financiero</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item>
+          <ion-label>Total Ingresos</ion-label>
+          <ion-note slot="end" color="success">${{ totalIngresos }}</ion-note>
+        </ion-item>
+        <ion-item>
+          <ion-label>Ingresos por WebPay</ion-label>
+          <ion-note slot="end">${{ ingresosPorWebpay }}</ion-note>
+        </ion-item>
+        <ion-item>
+          <ion-label>Ingresos por Transferencia</ion-label>
+          <ion-note slot="end">${{ ingresosPorTransferencia }}</ion-note>
+        </ion-item>
+        <ion-item>
+          <ion-label>Total Pedidos Entregados</ion-label>
+          <ion-note slot="end">{{ totalPedidosEntregados }}</ion-note>
+        </ion-item>
+        <ion-button expand="block" color="tertiary" (click)="generarReporte()">
+          Generar Reporte Mensual
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-list *ngIf="pedidosEntregados.length > 0; else sinEntregados">
+      <ion-item *ngFor="let pedido of pedidosEntregados">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Monto:</strong> ${{ pedido.montoTotal || calcularMontoTotalPedido(pedido) }}</p>
+          <p><strong>Método de Pago:</strong> {{ pedido.metodoPago }}</p>
+          <p><strong>Fecha de Entrega:</strong> {{ formatearFecha(pedido.fechaEntrega || pedido.fecha) }}</p>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinEntregados>
+      <ion-text color="medium">
+        <p class="ion-text-center">No hay pedidos entregados registrados.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+<app-footer></app-footer>
+</ion-content>
+
+
+//contador.page.ts
+import { Component, OnInit, inject } from '@angular/core';
+import { FirebaseService } from 'src/app/servicios/firebase.service';
+import { UtilsService } from 'src/app/servicios/utils.service';
+import { EstadoPago, EstadoPedido, Pedido } from 'src/app/models/bd.models';
+import { AlertController } from '@ionic/angular';
+import { formatDate, registerLocaleData } from '@angular/common';
+import localeEs from '@angular/common/locales/es'
+
+@Component({
+  selector: 'app-contador',
+  templateUrl: './contador.page.html',
+  styleUrls: ['./contador.page.scss'],
+})
+export class ContadorPage implements OnInit {
+  // Inyecciones
+  firebaseSvc = inject(FirebaseService);
+  utilsSvc = inject(UtilsService);
+  alertCtrl = inject(AlertController);
+
+  // Variables de estado
+  segmento: string = 'transferencias';
+  pedidosPendientesPago: Pedido[] = [];
+  pedidosEntregados: Pedido[] = [];
+
+  // Estadísticas
+  totalPedidosEntregados: number = 0;
+  totalIngresos: number = 0;
+  ingresosPorTransferencia: number = 0;
+  ingresosPorWebpay: number = 0;
+
+  constructor() {
+    registerLocaleData(localeEs, 'es');
+  }
+
+  ngOnInit() {
+    this.cargarDatos();
+  }
+
+  ionViewWillEnter() {
+    this.cargarDatos();
+  }
+
+  cargarDatos() {
+    // Cargar pedidos pendientes de pago por transferencia
+    this.firebaseSvc.getPedidosPorTransferenciaPendientes().subscribe(pedidos => {
+      this.pedidosPendientesPago = pedidos;
+    });
+
+    // Cargar pedidos entregados
+    this.firebaseSvc.getPedidosEntregados().subscribe(pedidos => {
+      this.pedidosEntregados = pedidos;
+
+      // Calcular estadísticas
+      this.calcularEstadisticas(pedidos);
+    });
+  }
+
+  calcularEstadisticas(pedidos: Pedido[]) {
+  this.totalPedidosEntregados = pedidos.length;
+
+  // Reiniciar variables
+  this.totalIngresos = 0;
+  this.ingresosPorTransferencia = 0;
+  this.ingresosPorWebpay = 0;
+
+  // Calcular totales con método más robusto
+  pedidos.forEach(pedido => {
+    let montoTotal = 0;
+
+    // Si el monto total ya está calculado, usarlo
+    if (pedido.montoTotal && typeof pedido.montoTotal === 'number') {
+      montoTotal = pedido.montoTotal;
+    }
+    // Si no, calcularlo a partir de los productos
+    else if (pedido.productos && Array.isArray(pedido.productos)) {
+      montoTotal = pedido.productos.reduce((total, producto) => {
+        // Verificar si el producto tiene cantidad especificada
+        const cantidad = producto.cantidad || 1;
+        return total + (producto.precio * cantidad);
+      }, 0);
+    }
+
+    this.totalIngresos += montoTotal;
+
+    if (pedido.metodoPago === 'transferencia') {
+      this.ingresosPorTransferencia += montoTotal;
+    } else if (pedido.metodoPago === 'webpay') {
+      this.ingresosPorWebpay += montoTotal;
+    }
+  });
+}
+
+calcularMontoTotalPedido(pedido: Pedido): number {
+  if (!pedido.productos || !Array.isArray(pedido.productos)) {
+    return 0;
+  }
+
+  return pedido.productos.reduce((total, producto) => {
+    // Verificar si el producto tiene cantidad especificada
+    const cantidad = producto.cantidad || 1;
+    return total + ((producto.precio || 0) * cantidad);
+  }, 0);
+}
+
+  cambiarSegmento() {
+    // Este método se llama cuando el usuario cambia de segmento
+    // No necesita implementación adicional ya que el ngModel se actualiza automáticamente
+  }
+
+  async confirmarPagoTransferencia(pedido: Pedido) {
+  const alert = await this.alertCtrl.create({
+    header: 'Confirmar Pago',
+    message: '¿Has verificado que el pago por transferencia fue recibido correctamente?',
+    buttons: [
+      {
+        text: 'Cancelar',
+        role: 'cancel'
+      },
+      {
+        text: 'Confirmar Pago',
+        handler: async () => {
+          const loading = await this.utilsSvc.loading();
+          await loading.present();
+
+          try {
+            // Actualizar el estado del pago a PAGADO
+            await this.firebaseSvc.actualizarEstadoPago(pedido.id, EstadoPago.PAGADO);
+
+            // Si no tiene monto total calculado, calcularlo y guardarlo
+            if (!pedido.montoTotal) {
+              const montoTotal = this.calcularMontoTotalPedido(pedido);
+              await this.firebaseSvc.actualizarMontoTotalPedido(pedido.id, montoTotal);
+            }
+
+            // Marcar como verificado por el contador
+            await this.firebaseSvc.marcarPedidoVerificado(pedido.id, true);
+
+            // Notificar al vendedor sobre el pago confirmado
+            // Este método debe asegurarse de que el vendedor reciba el pedido para procesarlo
+            await this.firebaseSvc.notificarPagoConfirmadoAlVendedor(pedido);
+
+            this.utilsSvc.presentToast({
+              message: 'Pago confirmado correctamente',
+              duration: 2000,
+              color: 'success'
+            });
+
+            // Recargar datos
+            this.cargarDatos();
+          } catch (error) {
+            console.error('Error al confirmar pago:', error);
+            this.utilsSvc.presentToast({
+              message: 'Error al confirmar el pago',
+              duration: 2000,
+              color: 'danger'
+            });
+          } finally {
+            loading.dismiss();
+          }
+        }
+      }
+    ]
+  });
+
+  await alert.present();
+}
+
+
+  async rechazarPagoTransferencia(pedido: Pedido) {
+    const alert = await this.alertCtrl.create({
+      header: 'Rechazar Pago',
+      message: '¿Estás seguro de que quieres rechazar este pago? Esta acción no se puede deshacer.',
+      buttons: [
+        {
+          text: 'Cancelar',
+          role: 'cancel'
+        },
+        {
+          text: 'Rechazar',
+          handler: async () => {
+            const loading = await this.utilsSvc.loading();
+            await loading.present();
+
+            try {
+              // Actualizar el estado del pago a RECHAZADO
+              await this.firebaseSvc.actualizarEstadoPago(pedido.id, EstadoPago.RECHAZADO);
+
+              // Marcar como verificado por el contador
+              await this.firebaseSvc.marcarPedidoVerificado(pedido.id, true);
+
+              this.utilsSvc.presentToast({
+                message: 'Pago rechazado',
+                duration: 2000,
+                color: 'success'
+              });
+
+              // Recargar datos
+              this.cargarDatos();
+            } catch (error) {
+              console.error('Error al rechazar pago:', error);
+              this.utilsSvc.presentToast({
+                message: 'Error al rechazar el pago',
+                duration: 2000,
+                color: 'danger'
+              });
+            } finally {
+              loading.dismiss();
+            }
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  async generarReporte() {
+  const alert = await this.alertCtrl.create({
+    header: 'Generar Reporte',
+    message: '¿Deseas generar un reporte del periodo actual?',
+    buttons: [
+      {
+        text: 'Cancelar',
+        role: 'cancel'
+      },
+      {
+        text: 'Generar',
+        handler: async () => {
+          const loading = await this.utilsSvc.loading();
+          await loading.present();
+
+          try {
+            const ahora = new Date();
+            // Usamos una alternativa más simple para obtener el nombre del mes
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const nombreMes = meses[ahora.getMonth()] + ' ' + ahora.getFullYear();
+
+            // Primer día del mes actual
+            const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+            // Último día del mes actual
+            const ultimoDiaMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
+
+            const reporte = {
+              periodo: nombreMes,
+              fechaInicio: primerDiaMes.toISOString(),
+              fechaFin: ultimoDiaMes.toISOString(),
+              totalVentas: this.totalIngresos,
+              totalPedidos: this.totalPedidosEntregados,
+              pedidosEntregados: this.totalPedidosEntregados,
+              ventasPorMetodoPago: {
+                webpay: this.ingresosPorWebpay,
+                transferencia: this.ingresosPorTransferencia
+              },
+              fechaGeneracion: new Date().toISOString(),
+              generadoPor: JSON.parse(localStorage.getItem('usuario') || '{}').uid || ''
+            };
+
+            await this.firebaseSvc.generarReporteFinanciero(reporte);
+
+            this.utilsSvc.presentToast({
+              message: 'Reporte generado correctamente',
+              duration: 2000,
+              color: 'success'
+            });
+          } catch (error) {
+            console.error('Error al generar reporte:', error);
+            this.utilsSvc.presentToast({
+              message: 'Error al generar el reporte',
+              duration: 2000,
+              color: 'danger'
+            });
+          } finally {
+            loading.dismiss();
+          }
+        }
+      }
+    ]
+  });
+
+  await alert.present();
+}
+
+// SOLUCIÓN 6: Actualiza el método formatearFecha en contador.page.ts
+// para que funcione sin depender de formatDate con locale
+formatearFecha(fecha: string): string {
+  if (!fecha) return 'N/A';
+
+  try {
+    const date = new Date(fecha);
+
+    // Formatear la fecha manualmente sin depender de formatDate
+    const dia = date.getDate().toString().padStart(2, '0');
+    const mes = (date.getMonth() + 1).toString().padStart(2, '0');
+    const anio = date.getFullYear();
+    const hora = date.getHours().toString().padStart(2, '0');
+    const minutos = date.getMinutes().toString().padStart(2, '0');
+
+    return `${dia}/${mes}/${anio} ${hora}:${minutos}`;
+  } catch (e) {
+    return fecha;
+  }
+}
+}
+
+
+<!-- login.page.html -->
+<ion-content>
+  <app-header></app-header>
+  <p>Debe iniciar sesión para utilizar la app</p>
+
+  <form [formGroup]="loginForm" (ngSubmit)="login()">
+    <!-- Campo de Email -->
+    <ion-item>
+      <ion-label position="floating">Correo electrónico</ion-label>
+      <ion-input formControlName="email" type="email"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="loginForm.get('email').hasError('required') && loginForm.get('email').touched">
+      El correo es obligatorio.
+    </ion-text>
+    <ion-text color="danger" *ngIf="loginForm.get('email').hasError('email') && loginForm.get('email').touched">
+      El correo debe tener un formato válido.
+    </ion-text>
+
+    <!-- Campo de Contraseña -->
+    <ion-item>
+      <ion-label position="floating">Contraseña</ion-label>
+      <ion-input formControlName="password" type="password"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="loginForm.get('password').hasError('required') && loginForm.get('password').touched">
+      La contraseña es obligatoria.
+    </ion-text>
+    <ion-text color="danger" *ngIf="loginForm.get('password').hasError('minlength') && loginForm.get('password').touched">
+      La contraseña debe tener al menos 6 caracteres.
+    </ion-text>
+
+    <!-- Botón de Inicio de Sesión -->
+    <ion-button expand="block" type="submit" [disabled]="loginForm.invalid" >Iniciar sesión</ion-button>
+  </form>
+  <p><a [routerLink]="['/reset-password']" >¿Olvidaste tu contraseña? Haz click aqui</a></p>
+
+  <app-footer></app-footer>
+</ion-content>
+
+//login.page.ts
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AuthService } from 'src/app/servicios/auth.service';
+import { AlertController } from '@ionic/angular';
+import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { UtilsService } from 'src/app/servicios/utils.service';
+
+@Component({
+  selector: 'app-login',
+  templateUrl: './login.page.html',
+  styleUrls: ['./login.page.scss']
+})
+export class LoginPage implements OnInit, OnDestroy {
+  loginForm: FormGroup;
+  private authService = inject(AuthService);
+  private alertController = inject(AlertController);
+  private formBuilder = inject(FormBuilder);
+  private router = inject(Router);
+  private utilsSvc= inject(UtilsService)
+
+  private authSubscription: Subscription; // Suscripción para escuchar el estado de autenticación
+
+  ngOnInit() {
+    this.loginForm = this.formBuilder.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]]
+    });
+
+    // Escuchar el estado de autenticación para limpiar el formulario cuando se cierra sesión
+    this.authSubscription = this.authService.isAuthenticated$.subscribe(isAuthenticated => {
+      if (!isAuthenticated) {
+        this.loginForm.reset(); // Resetea el formulario si no hay una sesión activa
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    this.authSubscription?.unsubscribe(); // Desuscribirse para evitar fugas de memoria
+  }
+
+  async login() {
+    if (this.loginForm.invalid) return;
+
+    const { email, password } = this.loginForm.value;
+    const loading = await this.utilsSvc.loading();  // Instancia de loading
+    await loading.present();
+
+    try {
+      const usuarioData = await this.authService.login(email, password);
+      if (usuarioData) {
+  this.mostrarAlerta('Éxito', 'sesion iniciada exitosamente');
+
+  let ruta = '/inicio'; // ruta por defecto
+
+  switch (usuarioData.rol) {
+    case 'administrador':
+      ruta = '/admin';
+      break;
+    case 'cliente':
+      ruta = '/cliente';
+      break;
+    case 'vendedor':
+      ruta = '/vendedor';
+      break;
+    case 'bodeguero':
+      ruta = '/bodeguero';
+      break;
+    case 'contador':
+      ruta = '/contador';
+      break;
+  }
+        this.router.navigate([ruta]);
+      }
+    } catch (error) {
+      this.mostrarAlerta('Error', 'Correo o contraseña incorrectos');
+    } finally {
+      loading.dismiss();
+    }
+  }
+
+  async mostrarAlerta(header: string, message: string) {
+    const alert = await this.alertController.create({
+      header,
+      message,
+      buttons: ['OK']
+    });
+
+    await alert.present();
+  }
+}
+
+
+
+
+<!--notificaciones.page.html-->
+<app-header></app-header>
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Mis Notificaciones</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- Spinner de carga -->
+  <div *ngIf="cargando" class="ion-text-center ion-padding">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Cargando notificaciones...</p>
+  </div>
+
+  <!-- Lista de notificaciones -->
+  <ion-list *ngIf="!cargando">
+    <div *ngIf="notificaciones.length === 0" class="ion-text-center ion-padding">
+      <ion-icon name="notifications-off-outline" size="large" color="medium"></ion-icon>
+      <p>No tienes notificaciones por el momento</p>
+    </div>
+
+    <ion-item-sliding *ngFor="let notificacion of notificaciones">
+      <ion-item [class.unread]="!notificacion.leido" (click)="marcarComoLeida(notificacion)">
+        <ion-icon [name]="notificacion.tipo === 'pedido_listo' ? 'bag-check-outline' : 'notifications-outline'"
+                  slot="start" [color]="notificacion.leido ? 'medium' : 'primary'"></ion-icon>
+        <ion-label>
+          <h2>{{ notificacion.titulo }}</h2>
+          <p>{{ notificacion.mensaje }}</p>
+          <p class="fecha">{{ formatearFecha(notificacion.fecha) }}</p>
+        </ion-label>
+        <ion-badge *ngIf="!notificacion.leido" color="danger" slot="end">Nueva</ion-badge>
+      </ion-item>
+
+      <ion-item-options side="end">
+        <ion-item-option color="primary" (click)="verDetallesPedido(notificacion.ordenCompra)" *ngIf="notificacion.ordenCompra">
+          <ion-icon slot="icon-only" name="eye-outline"></ion-icon>
+        </ion-item-option>
+        <ion-item-option color="light" (click)="marcarComoLeida(notificacion)" *ngIf="!notificacion.leido">
+          <ion-icon slot="icon-only" name="checkmark-done-outline"></ion-icon>
+        </ion-item-option>
+      </ion-item-options>
+    </ion-item-sliding>
+  </ion-list>
+</ion-content>
+<app-footer></app-footer>
+
+
+
+//notificaciones.page.ts
+
+import { Component, OnInit, inject } from '@angular/core';
+import { FirebaseService } from 'src/app/servicios/firebase.service';
+import { UtilsService } from 'src/app/servicios/utils.service';
+import { Router } from '@angular/router';
+
+@Component({
+  selector: 'app-notificaciones-cliente',
+  templateUrl: './notificaciones.page.html',
+  styleUrls: ['./notificaciones.page.scss'],
+})
+export class NotificacionesPage implements OnInit {
+  firebaseSvc = inject(FirebaseService);
+  utilsSvc = inject(UtilsService);
+  router = inject(Router);
+
+  notificaciones: any[] = [];
+  cargando: boolean = true;
+
+  constructor() { }
+
+  ngOnInit() {
+    this.cargarNotificaciones();
+  }
+
+  ionViewWillEnter() {
+    this.cargarNotificaciones();
+  }
+
+  async cargarNotificaciones() {
+    this.cargando = true;
+
+    try {
+      // Obtener el ID del usuario actual del localStorage
+      const usuario = JSON.parse(localStorage.getItem('usuario'));
+      if (!usuario || !usuario.uid) {
+        throw new Error('No hay usuario autenticado');
+      }
+
+      // Suscribirse a las notificaciones del cliente
+      this.firebaseSvc.getNotificacionesCliente(usuario.uid).subscribe(
+        (notificaciones) => {
+          this.notificaciones = notificaciones;
+          this.cargando = false;
+        },
+        (error) => {
+          console.error('Error al cargar notificaciones:', error);
+          this.cargando = false;
+          this.utilsSvc.presentToast({
+            message: 'Error al cargar notificaciones',
+            duration: 2000,
+            color: 'danger'
+          });
+        }
+      );
+    } catch (error) {
+      console.error('Error al obtener el usuario:', error);
+      this.cargando = false;
+      this.utilsSvc.presentToast({
+        message: 'Debes iniciar sesión para ver tus notificaciones',
+        duration: 2000,
+        color: 'warning'
+      });
+      this.router.navigate(['/login']);
+    }
+  }
+
+  async marcarComoLeida(notificacion: any) {
+    try {
+      await this.firebaseSvc.marcarNotificacionComoLeida(notificacion.id);
+
+      // Actualizar la notificación en la lista local
+      const index = this.notificaciones.findIndex(n => n.id === notificacion.id);
+      if (index !== -1) {
+        this.notificaciones[index].leido = true;
+      }
+
+    } catch (error) {
+      console.error('Error al marcar notificación como leída:', error);
+      this.utilsSvc.presentToast({
+        message: 'Error al actualizar la notificación',
+        duration: 2000,
+        color: 'danger'
+      });
+    }
+  }
+
+  // Método para formatear la fecha en un formato más amigable
+  formatearFecha(fechaIso: string): string {
+    if (!fechaIso) return 'Fecha desconocida';
+
+    const fecha = new Date(fechaIso);
+    return fecha.toLocaleString();
+  }
+
+  // Método para navegar a los detalles del pedido si se necesitara implementar después
+  verDetallesPedido(ordenCompra: string) {
+    // Implementar navegación a la página de detalles del pedido
+    this.router.navigate(['/mis-pedidos'], { queryParams: { orden: ordenCompra } });
+  }
+}
+
+
+<!-- registrar.page.html -->
+<ion-content>
+  <app-header></app-header>
+  <p>Registrar nuevo usuario</p>
+
+  <form [formGroup]="registroForm" (ngSubmit)="registrar()">
+    <!-- Campo de Email -->
+    <ion-item>
+      <ion-label position="floating">Correo electrónico</ion-label>
+      <ion-input formControlName="email" type="email"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="registroForm.get('email').hasError('required') && registroForm.get('email').touched">
+      El correo es obligatorio.
+    </ion-text>
+    <ion-text color="danger" *ngIf="registroForm.get('email').hasError('email') && registroForm.get('email').touched">
+      El correo debe tener un formato válido.
+    </ion-text>
+
+    <!-- Campo de Contraseña -->
+    <ion-item>
+      <ion-label position="floating">Contraseña</ion-label>
+      <ion-input formControlName="password" type="password"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="registroForm.get('password').hasError('required') && registroForm.get('password').touched">
+      La contraseña es obligatoria.
+    </ion-text>
+    <ion-text color="danger" *ngIf="registroForm.get('password').hasError('minlength') && registroForm.get('password').touched">
+      La contraseña debe tener al menos 6 caracteres.
+    </ion-text>
+
+    <!-- Campo de Nombre Completo -->
+    <ion-item>
+      <ion-label position="floating">Nombre Completo</ion-label>
+      <ion-input formControlName="nombreCompleto"></ion-input>
+    </ion-item>
+    <ion-text color="danger" *ngIf="registroForm.get('nombreCompleto').hasError('required') && registroForm.get('nombreCompleto').touched">
+      El nombre completo es obligatorio.
+    </ion-text>
+
+    <!-- Campo de Rol -->
+    <ion-item>
+      <ion-label position="floating">Rol</ion-label>
+      <ion-select formControlName="rol">
+        <ion-select-option value="administrador">Administrador</ion-select-option>
+        <ion-select-option value="cliente">Cliente</ion-select-option>
+        <ion-select-option value="vendedor">Vendedor</ion-select-option>
+        <ion-select-option value="bodeguero">Bodeguero</ion-select-option>
+        <ion-select-option value="contador">Contador</ion-select-option>
+      </ion-select>
+    </ion-item>
+    <ion-text color="danger" *ngIf="registroForm.get('rol').hasError('required') && registroForm.get('rol').touched">
+      El rol es obligatorio.
+    </ion-text>
+
+    <!-- Botón de Registro -->
+    <ion-button expand="block" type="submit" [disabled]="registroForm.invalid">Registrar</ion-button>
+  </form>
+
+<app-footer></app-footer>
+</ion-content>
+
+
+
+
+//registrar.page.ts
+import { UtilsService } from 'src/app/servicios/utils.service';
+import { Component, inject, OnInit } from '@angular/core';
+import { AuthService } from 'src/app/servicios/auth.service';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AlertController } from '@ionic/angular';
+import { Router } from '@angular/router';
+
+@Component({
+  selector: 'app-registrar',
+  templateUrl: './registrar.page.html',
+  styleUrls: ['./registrar.page.scss']
+})
+export class RegistrarPage implements OnInit {
+  registroForm: FormGroup;
+
+  private authService = inject(AuthService);
+  private alertController = inject(AlertController);
+  private formBuilder = inject(FormBuilder);
+  private router = inject(Router);
+  private utilsSvc= inject(UtilsService);
+
+  ngOnInit() {
+    this.registroForm = this.formBuilder.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      nombreCompleto: ['', Validators.required],
+      rol: ['cliente', Validators.required]
+    });
+  }
+
+  async registrar() {
+    if (this.registroForm.invalid) return;
+
+    const { email, password, nombreCompleto, rol } = this.registroForm.value;
+    const loading = await this.utilsSvc.loading();  // Instancia de loading
+    await loading.present();
+
+    try {
+      const resultado = await this.authService.registrarNuevoUsuario(nombreCompleto, email, password, rol);
+    if (resultado) {
+  this.mostrarAlerta('Éxito', 'Usuario registrado exitosamente');
+
+  let ruta = '/inicio'; // ruta por defecto
+
+  switch (rol) {
+    case 'administrador':
+      ruta = '/admin';
+      break;
+    case 'cliente':
+      ruta = '/cliente';
+      break;
+    case 'vendedor':
+      ruta = '/vendedor';
+      break;
+    case 'bodeguero':
+      ruta = '/bodeguero';
+      break;
+    case 'contador':
+      ruta = '/contador';
+      break;
+  }
+        this.router.navigate([ruta]);
+      }
+    } catch (error) {
+      this.mostrarAlerta('Error', error.message);
+    } finally {
+      loading.dismiss();
+    }
+  }
+
+
+  async mostrarAlerta(header: string, message: string) {
+    const alert = await this.alertController.create({
+      header,
+      message,
+      buttons: ['OK']
+    });
+
+    await alert.present();
+  }
+}
+
+
+
+<!--transbank-result.html-->
+<app-header></app-header>
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Resultado del Pago</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div *ngIf="cargando">
+    <ion-spinner></ion-spinner>
+    <p>Verificando estado de la transacción...</p>
+  </div>
+
+  <div *ngIf="!cargando">
+    <!-- Pago exitoso -->
+    <div *ngIf="estado === 'exito'">
+      <h2>✅ ¡Pago exitoso!</h2>
+
+      <ion-card *ngIf="detallesTransaccion">
+        <ion-card-header>
+          <ion-card-title>Detalles de la transacción</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <p><strong>Monto:</strong> ${{ detallesTransaccion.amount }}</p>
+          <p><strong>Orden:</strong> {{ detallesTransaccion.buy_order }}</p>
+          <p><strong>Tarjeta:</strong> **** **** **** {{ detallesTransaccion.card_detail?.card_number }}</p>
+          <p><strong>Fecha:</strong> {{ detallesTransaccion.transaction_date }}</p>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-button expand="block" color="medium" routerLink="/cliente">
+        Volver al inicio
+      </ion-button>
+    </div>
+
+    <!-- Pago fallido -->
+    <div *ngIf="estado === 'fallo'">
+      <h2>❌ El pago no fue autorizado</h2>
+      <p>Su tarjeta fue rechazada</p>
+
+      <ion-button expand="block" color="danger" routerLink="/cliente">
+        Volver al inicio
+      </ion-button>
+    </div>
+
+    <!-- Estado desconocido -->
+    <div *ngIf="estado === 'desconocido'">
+      <h2>⚠️ No se pudo determinar el resultado del pago</h2>
+      <p>Es posible que el proceso haya sido interrumpido o abortado por el usuario.</p>
+
+      <ion-button expand="block" color="medium" routerLink="/cliente">
+        Volver al inicio
+      </ion-button>
+    </div>
+  </div>
+</ion-content>
+<app-footer></app-footer>
+
+
+// ✅ transbank-result.page.ts 
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
+import { FirebaseService } from 'src/app/servicios/firebase.service';
+import { UtilsService } from 'src/app/servicios/utils.service';
+
+@Component({
+  selector: 'app-transbank-result',
+  templateUrl: './transbank-result.page.html',
+  styleUrls: ['./transbank-result.page.scss'],
+})
+export class TransbankResultPage implements OnInit {
+  estado: 'exito' | 'fallo' | 'desconocido' | null = null;
+  datos: any = {};
+  detallesTransaccion: any = null;
+  cargando: boolean = false;
+
+  constructor(
+    private route: ActivatedRoute,
+    private http: HttpClient,
+    private firebaseSvc: FirebaseService,
+    private router: Router,
+    private utilsSvc: UtilsService
+  ) {}
+
+  ngOnInit() {
+    this.route.queryParams.subscribe(params => {
+      const tokenWs = params['token_ws'];
+      const tbkToken = params['TBK_TOKEN'];
+
+      if (tbkToken) {
+        this.estado = 'fallo';
+        this.datos.TBK_TOKEN = tbkToken;
+        this.datos.TBK_ORDEN_COMPRA = params['TBK_ORDEN_COMPRA'];
+      } else if (tokenWs) {
+        this.verificarEstadoTransaccion(tokenWs);
+      } else {
+        this.estado = 'desconocido';
+      }
+    });
+  }
+
+  verificarEstadoTransaccion(token: string) {
+    this.cargando = true;
+
+    this.http.get(`${environment.backendApiUrl}/pagos/verificar/${token}`)
+      .subscribe(
+        (response: any) => {
+          this.detallesTransaccion = response;
+
+          if (response.status === 'AUTHORIZED') {
+            this.estado = 'exito';
+            this.datos.token_ws = token;
+            this.registrarPedidoYNotificar(response);
+          } else {
+            this.estado = 'fallo';
+            this.datos.TBK_TOKEN = token;
+            this.datos.TBK_ORDEN_COMPRA = response.buy_order || 'No disponible';
+          }
+
+          this.cargando = false;
+        },
+        (error) => {
+          this.estado = 'fallo';
+          this.datos.TBK_TOKEN = token;
+          this.datos.TBK_ORDEN_COMPRA = 'Error en verificación';
+          this.cargando = false;
+        }
+      );
+  }
+
+  async registrarPedidoYNotificar(transaccion: any) {
+  const ordenCompra = transaccion.buy_order;
+  const metodoPago = 'webpay';
+
+  // First, try to get data from localStorage
+  let productos = JSON.parse(localStorage.getItem('carritoWebpay') || '[]');
+  let direccion = localStorage.getItem('direccionWebpay') || '';
+  let retiro = localStorage.getItem('retiroWebpay') || '';
+
+  // Debug logs
+  console.log('Datos de localStorage:', { productos, direccion, retiro });
+
+  // If data is missing, try to get from Firestore
+  if (!productos.length || !direccion || !retiro) {
+    console.log('Intentando recuperar datos desde Firestore para orden:', ordenCompra);
+    const transData = await this.firebaseSvc.obtenerTransaccionPorOrden(ordenCompra);
+    console.log('Datos recuperados de Firestore:', transData);
+
+    if (transData) {
+      productos = transData.productos || productos;
+      direccion = transData.direccion || direccion;
+      retiro = transData.retiro || retiro;
+    }
+  }
+
+  // If we still don't have products, use a fallback
+  if (!productos.length) {
+    console.error('No se pudieron recuperar los productos del pedido');
+    this.utilsSvc.presentToast({
+      message: 'Error al procesar el pago: datos incompletos',
+      duration: 3000,
+      color: 'danger'
+    });
+    return;
+  }
+
+  // Obtener el ID del usuario actual
+  const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const clienteId = usuario.uid;
+
+  // Register purchase in user's collection
+  try {
+    for (const producto of productos) {
+      await this.firebaseSvc.guardarCompra({
+        productoId: producto.id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+        fecha: new Date().toISOString(),
+        ordenCompra,
+        estadoPago: 'pagado',
+        metodoPago,
+        direccion,
+        retiro
+      });
+    }
+
+    // Notify the seller (save to pedidosPendientes collection)
+    const pedidoData = {
+      productos,
+      ordenCompra,
+      metodoPago,
+      direccion,
+      retiro,
+      fecha: new Date().toISOString(),
+      estadoPago: 'pagado',
+      clienteId // Añadimos el ID del cliente a los datos del pedido
+    };
+
+    // Guardar el pedido y obtener el ID del documento
+    const pedidoRef = await this.firebaseSvc.notificarPedidoAVendedor(pedidoData);
+
+    // Si el pedido se guardó correctamente y tenemos su ID
+    if (pedidoRef && pedidoRef.id) {
+      console.log('Pedido guardado con ID:', pedidoRef.id);
+      console.log('Pedido guardado:', pedidoRef);
+    }
+
+    console.log('Pedido guardado correctamente en pedidosPendientes');
+
+    // Send push notification to seller
+    await this.firebaseSvc.enviarNotificacionAlVendedor(pedidoData);
+    console.log('Notificación push enviada al vendedor');
+
+    // Clean up localStorage
+    localStorage.removeItem('carritoWebpay');
+    localStorage.removeItem('direccionWebpay');
+    localStorage.removeItem('retiroWebpay');
+    localStorage.removeItem('currentTransaction');
+
+    this.utilsSvc.presentToast({
+      message: 'Pago procesado correctamente',
+      duration: 2000,
+      color: 'success'
+    });
+
+  } catch (error) {
+    console.error('Error al registrar el pedido:', error);
+    this.utilsSvc.presentToast({
+      message: 'Error al registrar el pedido',
+      duration: 3000,
+      color: 'danger'
+    });
+  }
+}
+}
+
+
+<!-- vendedor.page.html -->
+ <app-header></app-header>
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Gestión de Pedidos</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-segment [(ngModel)]="segmento" (ionChange)="cambiarSegmento()">
+    <ion-segment-button value="pendientes">
+      <ion-label>Pendientes</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="aceptados">
+      <ion-label>Aceptados</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="listoDespacho">
+      <ion-label>Listo para despacho</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="rechazados">
+      <ion-label>Rechazados</ion-label>
+    </ion-segment-button>
+  </ion-segment>
+
+  <!-- Pedidos pendientes -->
+  <div *ngIf="segmento === 'pendientes'">
+    <ion-list *ngIf="pedidosPendientes.length > 0; else sinPendientes">
+      <ion-item *ngFor="let pedido of pedidosPendientes">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Pago:</strong> {{ pedido.metodoPago }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <p><strong>Entrega:</strong> {{ pedido.retiro }}</p>
+          <div *ngIf="pedido.productos?.length">
+            <p><strong>Productos:</strong></p>
+            <ul>
+              <li *ngFor="let p of pedido.productos">
+                {{ p.nombre }} - ${{ p.precio }}
+              </li>
+            </ul>
+          </div>
+        </ion-label>
+        <ion-buttons slot="end">
+          <ion-button color="success" (click)="aceptarPedido(pedido)">
+            <ion-icon name="checkmark-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+          <ion-button color="danger" (click)="rechazarPedido(pedido)">
+            <ion-icon name="close-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinPendientes>
+      <ion-text color="medium" class="ion-text-center">
+        <p>No hay pedidos pendientes por revisar.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+
+  <!-- Pedidos aceptados -->
+  <div *ngIf="segmento === 'aceptados'">
+    <ion-list *ngIf="pedidosAceptados.length > 0; else sinAceptados">
+      <ion-item *ngFor="let pedido of pedidosAceptados">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Estado:</strong> {{ obtenerEstadoTexto(pedido.estadoPedido) }}</p>
+          <p><strong>Pago:</strong> {{ pedido.metodoPago }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <div *ngIf="pedido.productos?.length">
+            <p><strong>Productos:</strong></p>
+            <ul>
+              <li *ngFor="let p of pedido.productos">
+                {{ p.nombre }} - ${{ p.precio }}
+              </li>
+            </ul>
+          </div>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinAceptados>
+      <ion-text color="medium" class="ion-text-center">
+        <p>No hay pedidos aceptados.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+
+  <!-- Pedidos listos para despacho -->
+  <div *ngIf="segmento === 'listoDespacho'">
+  <ion-list *ngIf="pedidosListoDespacho.length > 0; else sinListoDespacho">
+    <ion-item *ngFor="let pedido of pedidosListoDespacho">
+      <ion-label>
+        <h2>Orden: {{ pedido.ordenCompra }}</h2>
+        <p><strong>Estado:</strong> Listo para entrega</p>
+        <p><strong>Pago:</strong> {{ pedido.metodoPago }}</p>
+        <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+        <div *ngIf="pedido.productos?.length">
+          <p><strong>Productos:</strong></p>
+          <ul>
+            <li *ngFor="let p of pedido.productos">
+              {{ p.nombre }} - ${{ p.precio }}
+            </li>
+          </ul>
+        </div>
+      </ion-label>
+      <ion-buttons slot="end">
+        <!-- Botón para notificar al cliente -->
+        <ion-button color="primary" (click)="notificarClientePedidoListo(pedido)">
+          <ion-icon name="notifications-outline" slot="icon-only"></ion-icon>
+        </ion-button>
+        <!-- Botón para marcar como entregado -->
+        <ion-button color="success" (click)="marcarComoEntregado(pedido)">
+          <ion-icon name="checkmark-done-outline" slot="icon-only"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-item>
+  </ion-list>
+
+  <ng-template #sinListoDespacho>
+    <ion-text color="medium" class="ion-text-center">
+      <p>No hay pedidos listos para despacho.</p>
+    </ion-text>
+  </ng-template>
+</div>
+
+  <!-- Pedidos rechazados -->
+  <div *ngIf="segmento === 'rechazados'">
+    <ion-list *ngIf="pedidosRechazados.length > 0; else sinRechazados">
+      <ion-item *ngFor="let pedido of pedidosRechazados">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Pago:</strong> {{ pedido.metodoPago }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <div *ngIf="pedido.productos?.length">
+            <p><strong>Productos:</strong></p>
+            <ul>
+              <li *ngFor="let p of pedido.productos">
+                {{ p.nombre }} - ${{ p.precio }}
+              </li>
+            </ul>
+          </div>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinRechazados>
+      <ion-text color="medium" class="ion-text-center">
+        <p>No hay pedidos rechazados.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+</ion-content>
+<app-footer></app-footer>
+
+
+// vendedor.page.ts
+import { Component, OnInit, inject } from '@angular/core';
+import { FirebaseService } from 'src/app/servicios/firebase.service';
+import { EstadoPedido, Pedido } from 'src/app/models/bd.models';
+import { UtilsService } from 'src/app/servicios/utils.service';
+import { AlertController } from '@ionic/angular';
+
+@Component({
+  selector: 'app-vendedor',
+  templateUrl: './vendedor.page.html',
+  styleUrls: ['./vendedor.page.scss'],
+})
+export class VendedorPage implements OnInit {
+  firebaseSvc = inject(FirebaseService);
+  utilsSvc = inject(UtilsService);
+  alertCtrl = inject(AlertController);
+
+  segmento: string = 'pendientes';
+  pedidosPendientes: Pedido[] = [];
+  pedidosAceptados: Pedido[] = [];
+  pedidosListoDespacho: Pedido[] = [];
+  pedidosRechazados: Pedido[] = [];
+
+  ngOnInit() {
+    this.cargarPedidos();
+  }
+
+  ionViewWillEnter() {
+    this.cargarPedidos();
+  }
+
+  cargarPedidos() {
+    this.firebaseSvc.getPedidosPorEstado().subscribe(data => {
+      // Filtrar los pedidos según su estado
+      this.pedidosPendientes = data.filter(p => p.estadoPedido === EstadoPedido.PENDIENTE);
+      this.pedidosAceptados = data.filter(p =>
+        p.estadoPedido === EstadoPedido.ACEPTADO ||
+        p.estadoPedido === EstadoPedido.EN_PREPARACION
+      );
+      this.pedidosListoDespacho = data.filter(p => p.estadoPedido === EstadoPedido.PREPARADO);
+      this.pedidosRechazados = data.filter(p => p.estadoPedido === EstadoPedido.RECHAZADO);
+    });
+  }
+
+  cambiarSegmento() {
+    // Este método se llama cuando el usuario cambia de segmento
+    // No necesita implementación adicional ya que el ngModel se actualiza automáticamente
+  }
+
+  obtenerEstadoTexto(estado: EstadoPedido): string {
+    switch (estado) {
+      case EstadoPedido.PENDIENTE:
+        return 'Pendiente';
+      case EstadoPedido.ACEPTADO:
+        return 'Aceptado - Enviado a bodega';
+      case EstadoPedido.RECHAZADO:
+        return 'Rechazado';
+      case EstadoPedido.EN_PREPARACION:
+        return 'En preparación';
+      case EstadoPedido.PREPARADO:
+        return 'Listo para entrega';
+      case EstadoPedido.ENTREGADO:
+        return 'Entregado';
+      default:
+        return 'Desconocido';
+    }
+  }
+
+  async aceptarPedido(pedido: Pedido) {
+    const loading = await this.utilsSvc.loading();
+    await loading.present();
+
+    try {
+      // Actualizar el estado del pedido a ACEPTADO
+      await this.firebaseSvc.actualizarEstadoPedido(pedido.id, EstadoPedido.ACEPTADO);
+
+      // Notificar al bodeguero
+      await this.firebaseSvc.notificarPedidoABodeguero(pedido);
+
+      this.utilsSvc.presentToast({
+        message: 'Pedido aceptado y enviado a bodega',
+        duration: 2000,
+        color: 'success'
+      });
+    } catch (error) {
+      console.error('Error al aceptar pedido:', error);
+      this.utilsSvc.presentToast({
+        message: 'Error al procesar el pedido',
+        duration: 2000,
+        color: 'danger'
+      });
+    } finally {
+      loading.dismiss();
+    }
+  }
+
+  async rechazarPedido(pedido: Pedido) {
+    const alert = await this.alertCtrl.create({
+      header: 'Rechazar Pedido',
+      message: '¿Estás seguro de que quieres rechazar este pedido?',
+      buttons: [
+        {
+          text: 'Cancelar',
+          role: 'cancel'
+        },
+        {
+          text: 'Rechazar',
+          handler: async () => {
+            const loading = await this.utilsSvc.loading();
+            await loading.present();
+
+            try {
+              await this.firebaseSvc.actualizarEstadoPedido(pedido.id, EstadoPedido.RECHAZADO);
+
+              // Opcionalmente, notificar al cliente que su pedido fue rechazado
+              // await this.firebaseSvc.notificarRechazoAlCliente(pedido);
+
+              this.utilsSvc.presentToast({
+                message: 'Pedido rechazado correctamente',
+                duration: 2000,
+                color: 'success'
+              });
+            } catch (error) {
+              console.error('Error al rechazar pedido:', error);
+              this.utilsSvc.presentToast({
+                message: 'Error al rechazar el pedido',
+                duration: 2000,
+                color: 'danger'
+              });
+            } finally {
+              loading.dismiss();
+            }
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  async marcarComoEntregado(pedido: Pedido) {
+    const alert = await this.alertCtrl.create({
+      header: 'Entregar Pedido',
+      message: '¿Confirmas que el pedido ha sido entregado al cliente?',
+      buttons: [
+        {
+          text: 'Cancelar',
+          role: 'cancel'
+        },
+        {
+          text: 'Confirmar',
+          handler: async () => {
+            const loading = await this.utilsSvc.loading();
+            await loading.present();
+
+            try {
+              await this.firebaseSvc.actualizarEstadoPedido(pedido.id, EstadoPedido.ENTREGADO);
+
+              // Opcionalmente, también podríamos actualizar el inventario aquí si no se hizo antes
+              await this.firebaseSvc.actualizarInventarioDespuesDeCompra(pedido.productos);
+
+              this.utilsSvc.presentToast({
+                message: 'Pedido marcado como entregado',
+                duration: 2000,
+                color: 'success'
+              });
+            } catch (error) {
+              console.error('Error al marcar pedido como entregado:', error);
+              this.utilsSvc.presentToast({
+                message: 'Error al procesar la entrega',
+                duration: 2000,
+                color: 'danger'
+              });
+            } finally {
+              loading.dismiss();
+            }
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+async notificarClientePedidoListo(pedido: Pedido) {
+  const alert = await this.alertCtrl.create({
+    header: 'Notificar al Cliente',
+    message: '¿Deseas enviar una notificación al cliente informando que su pedido está listo para ser entregado?',
+    buttons: [
+      {
+        text: 'Cancelar',
+        role: 'cancel'
+      },
+      {
+        text: 'Enviar Notificación',
+        handler: async () => {
+          const loading = await this.utilsSvc.loading();
+          await loading.present();
+
+          try {
+            // Intentar enviar la notificación al cliente
+            const result = await this.firebaseSvc.notificarClientePedidoListo(pedido);
+
+            if (result) {
+              this.utilsSvc.presentToast({
+                message: 'Notificación enviada al cliente correctamente',
+                duration: 2000,
+                color: 'success'
+              });
+            } else {
+              throw new Error('No se pudo enviar la notificación');
+            }
+          } catch (error) {
+            console.error('Error al notificar al cliente:', error);
+            this.utilsSvc.presentToast({
+              message: `Error al enviar la notificación: ${error.message}`,
+              duration: 3000,
+              color: 'danger'
+            });
+          } finally {
+            loading.dismiss();
+          }
+        }
+      }
+    ]
+  });
+
+  await alert.present();
+}
+async validarPushToken(token: string): Promise<boolean> {
+  try {
+    const response = await fetch('https://integracion-7xjk.onrender.com/api/test-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+
+    const result = await response.json();
+    return result.success === true;
+  } catch (error) {
+    console.error('Error validando token push:', error);
+    return false;
+  }
+}
+
+}
+
+
+
+//auth.service.ts
+import { Injectable } from '@angular/core';
+import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { AngularFirestore } from '@angular/fire/compat/firestore';
+import { BehaviorSubject } from 'rxjs';
+import { Usuario } from '../models/bd.models';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { getAuth } from 'firebase/auth';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
+  isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
+
+  private usuarioSubject = new BehaviorSubject<string>('');
+  usuario$ = this.usuarioSubject.asObservable();
+
+  private usuarioCompletoSubject = new BehaviorSubject<Usuario | null>(null);
+  usuarioCompleto$ = this.usuarioCompletoSubject.asObservable();
+
+  constructor(
+    private afAuth: AngularFireAuth,
+    private firestore: AngularFirestore
+  ) {
+    // Restaurar sesión desde localStorage si existe
+    const usuarioGuardado = localStorage.getItem('usuario');
+    if (usuarioGuardado) {
+      const usuario = JSON.parse(usuarioGuardado) as Usuario;
+      this.usuarioCompletoSubject.next(usuario);
+      this.usuarioSubject.next(usuario.nombreCompleto || '');
+      this.isAuthenticatedSubject.next(true);
+    }
+
+    // Sincronizar con Firebase en caso de cierre automático
+    this.afAuth.authState.subscribe(user => {
+      if (!user) {
+        this.logout(); // Si Firebase cierra sesión, sincronizamos el estado local
+      }
+    });
+  }
+
+  async login(email: string, password: string): Promise<Usuario> {
+  try {
+    const userCredential = await this.afAuth.signInWithEmailAndPassword(email, password);
+    this.isAuthenticatedSubject.next(true);
+
+    const userDoc = await this.firestore.collection('usuarios')
+      .doc(userCredential.user.uid)
+      .get()
+      .toPromise();
+
+    const usuarioData = userDoc.data() as Usuario;
+    this.usuarioCompletoSubject.next(usuarioData);
+    this.usuarioSubject.next(usuarioData.nombreCompleto || '');
+    localStorage.setItem('usuario', JSON.stringify(usuarioData));
+
+    // Check if there's a pending push token to register
+    const pendingToken = localStorage.getItem('pushToken');
+    if (pendingToken) {
+      await this.registrarTokenPush(pendingToken, usuarioData.uid);
+      localStorage.removeItem('pushToken');
+      console.log('Push token registrado después del login');
+    } else {
+      // Try to request new token
+      this.solicitarTokenPush(usuarioData.uid);
+    }
+
+    return usuarioData;
+  } catch (error) {
+    this.isAuthenticatedSubject.next(false);
+    throw error;
+  }
+}
+
+
+  logout(): void {
+    this.afAuth.signOut();
+    this.isAuthenticatedSubject.next(false);
+    this.usuarioSubject.next('');
+    this.usuarioCompletoSubject.next(null);
+    localStorage.removeItem('usuario'); // Limpia almacenamiento persistente
+  }
+
+  async registrarNuevoUsuario(
+    nombreCompleto: string,
+    email: string,
+    password: string,
+    rol: string
+  ): Promise<boolean> {
+    try {
+      const userCredential = await this.afAuth.createUserWithEmailAndPassword(email, password);
+      const uid = userCredential.user.uid;
+
+      const nuevoUsuario: Usuario = {
+        uid,
+        nombreCompleto,
+        email,
+        password: '', // Nunca guardar contraseñas en Firestore
+        rol,
+      };
+
+      await this.firestore.collection('usuarios').doc(uid).set(nuevoUsuario);
+      this.usuarioCompletoSubject.next(nuevoUsuario);
+      this.usuarioSubject.next(nombreCompleto);
+      this.isAuthenticatedSubject.next(true);
+      localStorage.setItem('usuario', JSON.stringify(nuevoUsuario));
+
+      return true;
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('El correo electrónico ya está en uso. Por favor, usa otro.');
+      } else {
+        throw new Error('Error al registrar el usuario. Inténtalo de nuevo.');
+      }
+    }
+  }
+
+async actualizarUsuario(uid: string, data: Partial<Usuario>): Promise<void> {
+  return this.firestore.collection('usuarios').doc(uid).update(data);
+}
+
+async registrarTokenPush(token: string, uid: string): Promise<boolean> {
+  if (!uid || !token) return false;
+
+  try {
+    // Update user document with the token
+    await this.firestore.collection('usuarios').doc(uid).update({
+      pushToken: token
+    });
+
+    // Save token info for debug purposes
+    await this.firestore.collection('tokens_push').add({
+      token,
+      userId: uid,
+      platform: this.getPlatform(),
+      date: new Date().toISOString(),
+      userAgent: navigator.userAgent
+    });
+
+    console.log('Token push registrado correctamente');
+    return true;
+  } catch (error) {
+    console.error('Error al registrar token push:', error);
+    return false;
+  }
+}
+
+
+async solicitarTokenPush(uid: string) {
+  try {
+    // If using Capacitor and PushNotifications API is available
+    // This is just to trigger the registration flow
+    if ('PushNotifications' in window) {
+      const PushNotifications = (window as any).PushNotifications;
+
+      const permStatus = await PushNotifications.requestPermissions();
+      if (permStatus.receive === 'granted') {
+        await PushNotifications.register();
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error('Error al solicitar permisos de notificaciones:', error);
+    return false;
+  }
+}
+
+getPlatform(): string {
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+
+  if (/android/i.test(userAgent)) {
+    return 'Android';
+  }
+
+  if (/iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream) {
+    return 'iOS';
+  }
+
+  return 'Web';
+}
+
+
+
+}
+
+//firebase.service.ts
+import { Injectable, inject } from '@angular/core';
+import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { Producto, Usuario, EstadoPedido, Pedido, EstadoPago, ReporteFinanciero} from '../models/bd.models';
+import { getAuth, updateProfile, createUserWithEmailAndPassword } from 'firebase/auth';
+import { addDoc, collection, getFirestore, collectionData, query, doc, deleteDoc, updateDoc, where } from '@angular/fire/firestore';
+import { AngularFirestore } from '@angular/fire/compat/firestore';
+import { map } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class FirebaseService {
+  private auth = inject(AngularFireAuth);
+  private firestore = inject(AngularFirestore);
+
+  async enviarNotificacionAlCliente(clienteId: string, titulo: string, mensaje: string, datos: any = {}) {
+  try {
+    if (!clienteId) {
+      console.error('ID de cliente no proporcionado');
+      return false;
+    }
+
+    // Buscar el usuario en Firestore para obtener su token
+    const clienteSnap = await this.firestore.collection('usuarios')
+      .doc(clienteId).get().toPromise();
+
+    const cliente = clienteSnap.data() as Usuario;
+
+    if (!cliente || !cliente.pushToken) {
+      console.warn('Cliente sin token de notificación:', clienteId);
+      return false;
+    }
+
+    // Guardar la notificación en la colección de notificaciones
+    await this.firestore.collection('notificacionesCliente').add({
+      titulo,
+      mensaje,
+      clienteId,
+      fecha: new Date().toISOString(),
+      leido: false,
+      datos
+    });
+
+    // Enviar notificación push mediante nuestra API
+    const response = await fetch('https://integracion-7xjk.onrender.com/api/notificar-cliente', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: cliente.pushToken,
+        title: titulo,
+        body: mensaje,
+        data: datos
+      })
+    });
+
+    const result = await response.json();
+    console.log('Resultado de notificación push:', result);
+
+    return result.success;
+  } catch (error) {
+    console.error('Error al enviar notificación al cliente:', error);
+    return false;
+  }
+}
+
+  sendRecoveryEmail(email: string) {
+    return this.auth.sendPasswordResetEmail(email);
+  }
+
+  getProductos() {
+    const path = 'productos';
+    const ref = collection(getFirestore(), path);
+    return collectionData(query(ref), { idField: 'id' });
+  }
+
+  addProducto(data: any) {
+    const path = 'productos';
+    return addDoc(collection(getFirestore(), path), data);
+  }
+
+  updateProducto(id: string, data: any) {
+    const path = `productos/${id}`;
+    const docRef = doc(getFirestore(), path);
+    return updateDoc(docRef, data);
+  }
+
+  deleteProducto(id: string) {
+    const path = `productos/${id}`;
+    const docRef = doc(getFirestore(), path);
+    return deleteDoc(docRef);
+  }
+
+  async guardarCompra(compra: any) {
+    const usuarioId = JSON.parse(localStorage.getItem('usuario')).uid;
+    return this.firestore.collection(`usuarios/${usuarioId}/compras`).add(compra);
+  }
+
+  // Método para notificar al vendedor de un nuevo pedido
+  async notificarPedidoAVendedor(pedido: any) {
+    // Añadir el estado del pedido como pendiente (si no viene ya en el objeto)
+    if (!pedido.estadoPedido) {
+      pedido.estadoPedido = EstadoPedido.PENDIENTE;
+    }
+
+    return this.firestore.collection('pedidosPendientes').add(pedido);
+  }
+
+  // Método para obtener los pedidos por estado
+getPedidosPorEstado() {
+  return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
+    // Solo mostrar pedidos con estado de pago PAGADO
+    ref.where('estadoPago', '==', EstadoPago.PAGADO)
+  ).valueChanges({ idField: 'id' });
+}
+
+  getPedidosPorTransferenciaPendientes(): Observable<Pedido[]> {
+    return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
+      ref.where('metodoPago', '==', 'transferencia')
+         .where('estadoPago', '==', EstadoPago.PENDIENTE)
+    ).valueChanges({ idField: 'id' });
+  }
+
+  // Método para obtener pedidos específicos para el bodeguero
+  getPedidosBodega() {
+    return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
+      ref.where('estadoPedido', 'in', [
+        EstadoPedido.ACEPTADO,
+        EstadoPedido.EN_PREPARACION,
+        EstadoPedido.PREPARADO
+      ])
+    ).valueChanges({ idField: 'id' });
+  }
+
+  getPedidosEntregados(): Observable<Pedido[]> {
+    return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
+      ref.where('estadoPedido', '==', EstadoPedido.ENTREGADO)
+    ).valueChanges({ idField: 'id' });
+  }
+
+async actualizarEstadoPago(pedidoId: string, nuevoEstado: EstadoPago): Promise<void> {
+    return this.firestore.collection('pedidosPendientes').doc(pedidoId).update({
+      estadoPago: nuevoEstado
+    });
+  }
+
+
+
+  // Método para actualizar el estado de un pedido
+  async actualizarEstadoPedido(pedidoId: string, nuevoEstado: EstadoPedido) {
+    return this.firestore.collection('pedidosPendientes').doc(pedidoId).update({
+      estadoPedido: nuevoEstado
+    });
+  }
+
+  // Método para notificar al bodeguero de un pedido aceptado
+  async notificarPedidoABodeguero(pedido: Pedido) {
+    // Primero, buscar bodegueros disponibles
+    const bodegueros = await this.firestore.collection('usuarios', ref =>
+      ref.where('rol', '==', 'bodeguero')
+    ).get().toPromise();
+
+    // Asignar el pedido a un bodeguero (se podría mejorar para equilibrar la carga)
+    if (bodegueros && !bodegueros.empty) {
+      const bodeguero = bodegueros.docs[0].data() as Usuario;
+
+      // Actualizar el pedido con el ID del bodeguero asignado
+      await this.firestore.collection('pedidosPendientes').doc(pedido.id).update({
+        bodegueroId: bodeguero.uid
+      });
+
+      // Enviar notificación push al bodeguero si tiene token
+      if (bodeguero.pushToken) {
+        const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
+
+        await fetch('https://integracion-7xjk.onrender.com/api/notificar-bodeguero', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: bodeguero.pushToken,
+            title: '📦 Nuevo Pedido por Preparar',
+            body: `Orden: ${pedido.ordenCompra}\nProductos: ${productosTexto}`,
+            data: {
+              pedidoId: pedido.id,
+              ordenCompra: pedido.ordenCompra,
+              productos: JSON.stringify(pedido.productos)
+            }
+          })
+        });
+      }
+    }
+  }
+
+  async marcarPedidoVerificado(pedidoId: string, verificado: boolean = true): Promise<void> {
+    return this.firestore.collection('pedidosPendientes').doc(pedidoId).update({
+      verificadoPorContador: verificado
+    });
+  }
+
+  getReportesFinancieros(): Observable<ReporteFinanciero[]> {
+    return this.firestore.collection<ReporteFinanciero>('reportesFinancieros', ref =>
+      ref.orderBy('fechaGeneracion', 'desc')
+    ).valueChanges({ idField: 'id' });
+  }
+
+  // Generar un nuevo reporte financiero
+  async generarReporteFinanciero(reporte: ReporteFinanciero): Promise<any> {
+    return this.firestore.collection('reportesFinancieros').add(reporte);
+  }
+
+  // Calcular el monto total de un pedido
+  calcularMontoTotalPedido(pedido: Pedido): number {
+    if (!pedido.productos || !Array.isArray(pedido.productos)) {
+      return 0;
+    }
+
+    return pedido.productos.reduce((total, producto) => {
+      return total + (producto.precio || 0);
+    }, 0);
+  }
+
+  // Actualizar monto total de un pedido (si no fue calculado previamente)
+  async actualizarMontoTotalPedido(pedidoId: string, montoTotal: number): Promise<void> {
+    return this.firestore.collection('pedidosPendientes').doc(pedidoId).update({
+      montoTotal: montoTotal
+    });
+  }
+
+  // Método para obtener pedidos por rango de fechas
+  getPedidosPorRangoFechasEntrega(fechaInicio: string, fechaFin: string): Observable<Pedido[]> {
+    return this.firestore.collection<Pedido>('pedidosPendientes', ref =>
+      ref.where('estadoPedido', '==', EstadoPedido.ENTREGADO)
+         .where('fechaEntrega', '>=', fechaInicio)
+         .where('fechaEntrega', '<=', fechaFin)
+    ).valueChanges({ idField: 'id' });
+  }
+
+  // Notificar al vendedor de un pago confirmado por el contador
+async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
+  if (!pedido || !pedido.id) return;
+
+  // Actualizar el pedido para indicar que ahora está listo para que lo procese el vendedor
+  await this.firestore.collection('pedidosPendientes').doc(pedido.id).update({
+    estadoPago: EstadoPago.PAGADO,
+    estadoPedido: EstadoPedido.PENDIENTE // Mantenerlo como pendiente para que el vendedor lo vea
+  });
+
+  // Obtener vendedores
+  const vendedoresSnap = await this.firestore.collection('usuarios', ref =>
+    ref.where('rol', '==', 'vendedor')
+  ).get().toPromise();
+
+  for (const doc of vendedoresSnap.docs) {
+    const vendedor = doc.data() as Usuario;
+    if (vendedor && vendedor.pushToken) {
+      const productosTexto = pedido.productos && Array.isArray(pedido.productos) ?
+        pedido.productos.map(p => p.nombre || 'Producto').join(', ') :
+        'Sin productos';
+
+      await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: vendedor.pushToken,
+          title: '💰 Pago Confirmado',
+          body: `Orden ${pedido.ordenCompra || 'sin número'}: Pago por transferencia verificado por contabilidad`,
+          data: {
+            ordenCompra: pedido.ordenCompra || '',
+            metodoPago: pedido.metodoPago || '',
+            productos: JSON.stringify(pedido.productos || [])
+          }
+        })
+      });
+    }
+  }
+
+  // Registrar notificación en la colección para que los vendedores la vean en la app
+  await this.firestore.collection('notificacionesVendedor').add({
+    titulo: '💰 Pago Confirmado',
+    mensaje: `Orden ${pedido.ordenCompra || 'sin número'}: Pago por transferencia verificado por contabilidad`,
+    fecha: new Date().toISOString(),
+    leido: false,
+    pedidoId: pedido.id || '',
+    ordenCompra: pedido.ordenCompra || '',
+    tipo: 'pago_confirmado'
+  });
+}
+
+  // Método para notificar al vendedor cuando un pedido está preparado
+  async notificarPedidoPreparado(pedido: Pedido) {
+    // Si el pedido tiene un vendedorId asignado, usarlo para enviar la notificación
+    if (pedido.vendedorId) {
+      const vendedorSnap = await this.firestore.collection('usuarios')
+        .doc(pedido.vendedorId).get().toPromise();
+
+      const vendedor = vendedorSnap.data() as Usuario;
+
+      if (vendedor && vendedor.pushToken) {
+        await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: vendedor.pushToken,
+            title: '✅ Pedido Preparado',
+            body: `La orden ${pedido.ordenCompra} está lista para ser entregada`,
+            data: {
+              pedidoId: pedido.id,
+              ordenCompra: pedido.ordenCompra
+            }
+          })
+        });
+      }
+    } else {
+      // Si no hay vendedorId, notificar a todos los vendedores
+      const vendedoresSnap = await this.firestore.collection('usuarios', ref =>
+        ref.where('rol', '==', 'vendedor')
+      ).get().toPromise();
+
+      for (const doc of vendedoresSnap.docs) {
+        const vendedor = doc.data() as Usuario;
+        if (vendedor.pushToken) {
+          await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: vendedor.pushToken,
+              title: '✅ Pedido Preparado',
+              body: `La orden ${pedido.ordenCompra} está lista para ser entregada`,
+              data: {
+                pedidoId: pedido.id,
+                ordenCompra: pedido.ordenCompra
+              }
+            })
+          });
+        }
+      }
+    }
+  }
+
+  getPedidosPendientes() {
+    return this.firestore.collection('pedidosPendientes').valueChanges({ idField: 'id' });
+  }
+
+  getSucursales(): Observable<any[]> {
+    return this.firestore.collection('sucursales', ref =>
+      ref.where('activo', '==', true)
+    ).snapshotChanges().pipe(
+      map(actions => actions.map(a => {
+        const data = a.payload.doc.data() as any;
+        const id = a.payload.doc.id;
+        return { id, ...data };
+      }))
+    );
+  }
+
+  addSucursal(data: { nombre: string, direccion: string }) {
+    const path = 'sucursales';
+    return addDoc(collection(getFirestore(), path), data);
+  }
+
+  async enviarNotificacionAlVendedor(pedido: {
+  productos: any[];
+  metodoPago: string;
+  retiro: string;
+  direccion: string;
+  ordenCompra: string;
+}) {
+  try {
+    const vendedoresSnap = await this.firestore.collection('usuarios', ref =>
+      ref.where('rol', '==', 'vendedor')
+    ).get().toPromise();
+
+    // Guardar en colección de notificaciones
+    await this.firestore.collection('notificacionesVendedor').add({
+      titulo: '🛒 Nuevo Pedido',
+      mensaje: `Orden: ${pedido.ordenCompra} - Método: ${pedido.metodoPago}`,
+      fecha: new Date().toISOString(),
+      leido: false,
+      ordenCompra: pedido.ordenCompra,
+      tipo: 'nuevo_pedido'
+    });
+
+    let notificacionesEnviadas = 0;
+
+    for (const doc of vendedoresSnap.docs) {
+      const vendedor = doc.data() as Usuario;
+      if (vendedor.pushToken) {
+        const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
+        const tipoEntrega = pedido.retiro === 'domicilio' ? 'Despacho a domicilio' : 'Retiro en tienda';
+
+        const response = await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: vendedor.pushToken,
+            title: '🛒 Nuevo Pedido',
+            body: `${tipoEntrega} - ${pedido.direccion}\nProductos: ${productosTexto}`,
+            data: {
+              ordenCompra: pedido.ordenCompra,
+              metodoPago: pedido.metodoPago,
+              retiro: pedido.retiro,
+              direccion: pedido.direccion,
+              productos: JSON.stringify(pedido.productos),
+              tipo: 'nuevo_pedido'
+            }
+          })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          notificacionesEnviadas++;
+        }
+
+        console.log(`Notificación enviada a vendedor ${vendedor.nombreCompleto}:`, result);
+      }
+    }
+
+    return notificacionesEnviadas > 0;
+  } catch (error) {
+    console.error('Error al enviar notificación al vendedor:', error);
+    return false;
+  }
+}
+
+  getNotificacionesVendedor() {
+    return this.firestore.collection('notificacionesVendedor', ref =>
+      ref.orderBy('timestamp', 'desc')
+    ).valueChanges({ idField: 'id' });
+  }
+
+  async obtenerTransaccionPorOrden(ordenCompra: string): Promise<any | null> {
+    try {
+      // Try to get from transacciones collection
+      const snap = await this.firestore.collection('transacciones', ref =>
+        ref.where('ordenCompra', '==', ordenCompra)
+      ).get().toPromise();
+
+      if (!snap.empty) {
+        return snap.docs[0].data();
+      }
+
+      // If not found, try to get from user's transacciones subcollection (backup)
+      const user = await this.auth.currentUser;
+      if (user) {
+        const userSnap = await this.firestore.collection(`usuarios/${user.uid}/transacciones`, ref =>
+          ref.where('ordenCompra', '==', ordenCompra)
+        ).get().toPromise();
+
+        if (!userSnap.empty) {
+          return userSnap.docs[0].data();
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error al obtener transacción:', error);
+      return null;
+    }
+  }
+
+  async actualizarInventarioDespuesDeCompra(productos: any[]) {
+    try {
+      for (const item of productos) {
+        if (item.id) {
+          // Get current product data
+          const productoRef = this.firestore.doc(`productos/${item.id}`);
+          const productoSnap = await productoRef.get().toPromise();
+
+          if (productoSnap.exists) {
+            const productoData = productoSnap.data() as Producto;
+            const nuevoStock = Math.max(0, productoData.stock - (item.cantidad || 1));
+
+            // Update stock
+            await productoRef.update({
+              stock: nuevoStock
+            });
+
+            console.log(`Stock actualizado para ${item.nombre}: ${productoData.stock} -> ${nuevoStock}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error al actualizar inventario:', error);
+    }
+  }
+
+  getUsuariosPorRol(roles: string[]) {
+    return this.firestore.collection('usuarios', ref =>
+      ref.where('rol', 'in', roles)
+    ).valueChanges({ idField: 'uid' });
+  }
+
+  eliminarUsuario(uid: string) {
+    return this.firestore.collection('usuarios').doc(uid).delete();
+  }
+
+// Método para notificar al cliente que su pedido está listo para despacho
+async notificarClientePedidoListo(pedido: Pedido) {
+  try {
+    // Si el pedido no tiene clienteId, intentamos encontrar al cliente por otros medios
+    if (!pedido.clienteId) {
+      // Buscar en las compras para identificar al cliente que realizó esta orden
+      const comprasRef = this.firestore.collection('usuarios').get().toPromise();
+      const usuarios = (await comprasRef).docs;
+
+      let clienteEncontrado = null;
+
+      // Revisar las colecciones de compras de cada usuario
+      for (const usuario of usuarios) {
+        const compras = await this.firestore.collection(`usuarios/${usuario.id}/compras`, ref =>
+          ref.where('ordenCompra', '==', pedido.ordenCompra)
+        ).get().toPromise();
+
+        if (!compras.empty) {
+          clienteEncontrado = usuario.id;
+          // Actualizar el pedido con el ID del cliente para futuras referencias
+          await this.registrarClienteEnPedido(pedido.id, clienteEncontrado);
+          break;
+        }
+      }
+
+      if (clienteEncontrado) {
+        pedido.clienteId = clienteEncontrado;
+      } else {
+        console.warn('No se pudo identificar al cliente para la orden:', pedido.ordenCompra);
+        return false;
+      }
+    }
+
+    // Crear una notificación en la colección de notificaciones del cliente
+    await this.firestore.collection('notificacionesCliente').add({
+      titulo: '🎉 Tu pedido está listo',
+      mensaje: `Tu pedido con orden ${pedido.ordenCompra} está listo para ser entregado o retirado.`,
+      leido: false,
+      fecha: new Date().toISOString(),
+      pedidoId: pedido.id,
+      ordenCompra: pedido.ordenCompra,
+      clienteId: pedido.clienteId,
+      tipo: 'pedido_listo'
+    });
+
+    // Si el cliente tiene token de notificación push, enviar notificación
+    if (pedido.clienteId) {
+      const clienteSnap = await this.firestore.collection('usuarios')
+        .doc(pedido.clienteId).get().toPromise();
+
+      const cliente = clienteSnap.data() as Usuario;
+
+      if (cliente && cliente.pushToken) {
+        const response = await fetch('https://integracion-7xjk.onrender.com/api/notificar-cliente', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: cliente.pushToken,
+            title: '🎉 Tu pedido está listo',
+            body: `Tu pedido con orden ${pedido.ordenCompra} está listo para ser entregado o retirado.`,
+            data: {
+              pedidoId: pedido.id,
+              ordenCompra: pedido.ordenCompra,
+              tipo: 'pedido_listo'
+            }
+          })
+        });
+
+        const result = await response.json();
+        console.log('Resultado notificación cliente:', result);
+
+        if (!result.success) {
+          console.warn('Error al enviar push al cliente:', result.error);
+        }
+
+        return result.success;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error al notificar al cliente:', error);
+    return false;
+  }
+}
+
+// Método para obtener notificaciones de un cliente
+getNotificacionesCliente(clienteId: string) {
+  return this.firestore.collection('notificacionesCliente', ref =>
+    ref.where('clienteId', '==', clienteId)
+    .orderBy('fecha', 'desc')
+  ).valueChanges({ idField: 'id' });
+}
+
+// Método para marcar una notificación como leída
+marcarNotificacionComoLeida(notificacionId: string) {
+  return this.firestore.collection('notificacionesCliente').doc(notificacionId).update({
+    leido: true
+  });
+}
+
+// Método para actualizar el modelo de pedido con el ID del cliente al crear un pedido
+async registrarClienteEnPedido(pedidoId: string, clienteId: string) {
+  return this.firestore.collection('pedidosPendientes').doc(pedidoId).update({
+    clienteId: clienteId
+  });
+}
+
+async enviarPedidoAlContador(pedido: any) {
+  try {
+    // Guardamos el pedido en la colección general pero marcamos que está pendiente de verificación del contador
+    return this.firestore.collection('pedidosPendientes').add({
+      ...pedido,
+      estadoPago: EstadoPago.PENDIENTE,
+      estadoPedido: EstadoPedido.PENDIENTE,
+      verificadoPorContador: false
+    });
+  } catch (error) {
+    console.error('Error al enviar pedido al contador:', error);
+    throw error;
+  }
+}
+async notificarPagoPendienteAContador(pedido: any) {
+  if (
+    !pedido.ordenCompra ||
+    !pedido.metodoPago ||
+    !pedido.fecha ||
+    !pedido.estadoPago ||
+    !pedido.estadoPedido ||
+    !pedido.clienteId ||
+    !Array.isArray(pedido.productos)
+  ) {
+    throw new Error('Datos incompletos del pedido');
+  }
+
+  pedido.verificadoPorContador = false;
+  pedido.montoTotal = pedido.montoTotal || this.calcularMontoTotalPedido(pedido);
+
+  return this.firestore.collection('pedidosPendientes').add(pedido);
+}
+
+updateUserData(userId: string, userData: any) {
+  return this.firestore.collection('usuarios').doc(userId).update(userData);
+}
+
+
+
+
+
+
+
+}
+
+// notification.service.ts
+import { Injectable } from '@angular/core';
+import { Platform } from '@ionic/angular';
+import { BehaviorSubject } from 'rxjs';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { AngularFirestore } from '@angular/fire/compat/firestore';
+import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class NotificationService {
+  private notificationCountSubject = new BehaviorSubject<number>(0);
+  notificationCount$ = this.notificationCountSubject.asObservable();
+
+  constructor(
+    private platform: Platform,
+    private firestore: AngularFirestore,
+    private router: Router,
+    private http: HttpClient
+  ) {}
+
+  // Initialize push notifications
+  async initPushNotifications() {
+    // Only run on mobile devices
+    if (!this.platform.is('capacitor')) {
+      console.log('Push notifications solo disponibles en dispositivos móviles');
+      return false;
+    }
+
+    try {
+      // Request permission
+      const permStatus = await PushNotifications.requestPermissions();
+
+      if (permStatus.receive !== 'granted') {
+        console.log('Permiso de notificaciones denegado');
+        return false;
+      }
+
+      // Clear old notifications
+      await PushNotifications.removeAllDeliveredNotifications();
+
+      // Register for push
+      await PushNotifications.register();
+
+      // Add listeners
+      this.addNotificationListeners();
+
+      console.log('Push notifications inicializadas correctamente');
+      return true;
+    } catch (error) {
+      console.error('Error inicializando notificaciones:', error);
+      return false;
+    }
+  }
+
+  private addNotificationListeners() {
+    // On registration success
+    PushNotifications.addListener('registration',
+      (token: { value: string }) => {
+        console.log('Push token obtenido:', token.value);
+        this.saveTokenToStorage(token.value);
+
+        // Save if user is logged in
+        const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+        if (usuario && usuario.uid) {
+          this.registerPushTokenForUser(usuario.uid, token.value);
+        }
+      }
+    );
+
+    // On notification received in foreground
+    PushNotifications.addListener('pushNotificationReceived',
+      (notification: any) => {
+        console.log('Notificación recibida en primer plano:', notification);
+        this.incrementNotificationCounter();
+        // You could display a toast or update your UI here
+      }
+    );
+
+    // On notification tapped
+    PushNotifications.addListener('pushNotificationActionPerformed',
+      (action: any) => {
+        console.log('Notificación presionada:', action);
+        this.handleNotificationAction(action.notification);
+      }
+    );
+  }
+
+  private incrementNotificationCounter() {
+    const currentCount = this.notificationCountSubject.value;
+    this.notificationCountSubject.next(currentCount + 1);
+  }
+
+  resetNotificationCounter() {
+    this.notificationCountSubject.next(0);
+  }
+
+  private saveTokenToStorage(token: string) {
+    localStorage.setItem('pushToken', token);
+  }
+
+  private async registerPushTokenForUser(userId: string, token: string) {
+    try {
+      // Update user document with token
+      await this.firestore.collection('usuarios').doc(userId).update({
+        pushToken: token
+      });
+
+      // Also send to your API for diagnostics
+      await this.http.post(`${environment.backendApiUrl}/api/debug-fcm`, {
+        token: token,
+        details: {
+          userId: userId,
+          platform: this.platform.platforms(),
+          timestamp: new Date().toISOString()
+        }
+      }).toPromise();
+
+      console.log('Token registrado para usuario:', userId);
+      return true;
+    } catch (error) {
+      console.error('Error al registrar token:', error);
+      return false;
+    }
+  }
+
+  private handleNotificationAction(notification: any) {
+    try {
+      // Extract data from notification
+      console.log('Handling notification:', notification);
+
+      const data = notification.data;
+
+      if (!data) {
+        console.warn('Notificación sin datos');
+        return;
+      }
+
+      // Navigate based on notification type
+      if (data.tipo === 'pedido_listo') {
+        this.router.navigate(['/mis-pedidos'], {
+          queryParams: { orden: data.ordenCompra }
+        });
+      } else if (data.tipo === 'nuevo_pedido') {
+        this.router.navigate(['/pedidos-pendientes']);
+      } else if (data.pedidoId) {
+        // Default navigation if type not specified but pedidoId exists
+        this.router.navigate(['/mis-pedidos'], {
+          queryParams: { pedido: data.pedidoId }
+        });
+      }
+    } catch (error) {
+      console.error('Error al manejar notificación:', error);
+    }
+  }
+
+  // Method to test notifications
+  async sendTestNotification() {
+    const token = localStorage.getItem('pushToken');
+
+    if (!token) {
+      console.error('No hay token push disponible');
+      return false;
+    }
+
+    try {
+      const response = await this.http.post(`${environment.backendApiUrl}/api/test-notification`, {
+        token: token
+      }).toPromise();
+
+      console.log('Resultado prueba de notificación:', response);
+      return true;
+    } catch (error) {
+      console.error('Error en prueba de notificación:', error);
+      return false;
+    }
+  }
+}
+
+
+// transbank.service.ts
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { AngularFirestore } from '@angular/fire/compat/firestore';
+import { Observable, throwError } from 'rxjs';
+import { catchError, timeout } from 'rxjs/operators';
+import { UtilsService } from './utils.service';
+import { environment } from '../../environments/environment';
+import { Router } from '@angular/router';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class TransbankService {
+  private http = inject(HttpClient);
+  private afAuth = inject(AngularFireAuth);
+  private firestore = inject(AngularFirestore);
+  private utilsSvc = inject(UtilsService);
+  private router = inject(Router);
+
+  // URL del backend que maneja la comunicación con Transbank
+  private backendApiUrl = environment.backendApiUrl || 'http://localhost:3000/api';
+
+  // Iniciar una transacción con Transbank a través del backend
+  iniciarTransaccion(monto: number, ordenCompra: string): Observable<any> {
+    const body = {
+      amount: monto,
+      buyOrder: ordenCompra,
+      returnUrl: `${window.location.origin}/transbank-result`,
+      sessionId: `session_${Date.now()}`
+    };
+
+    console.log('Enviando petición al backend:', body);
+    return this.http.post(`${this.backendApiUrl}/pagos/iniciar`, body)
+      .pipe(
+        timeout(30000), // Añadimos un timeout de 30 segundos
+        catchError(error => {
+          console.error('Error en la llamada HTTP al backend:', error);
+          return throwError(() => new Error('Error al comunicarse con el servidor de pagos: ' + (error.message || error.statusText)));
+        })
+      );
+  }
+
+  // Generar un número de orden único
+  generarOrdenCompra(): string {
+    const fecha = new Date();
+    const timestamp = fecha.getTime().toString();
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `OC${timestamp}${random}`;
+  }
+
+  // Guardar información de la transacción en Firestore
+  async guardarTransaccion(data: any): Promise<any> {
+    try {
+      const user = await this.afAuth.currentUser;
+      if (!user) throw new Error('Usuario no autenticado');
+
+      const transaccionRef = this.firestore.collection(`usuarios/${user.uid}/transacciones`);
+      const docRef = await transaccionRef.add({
+        ...data,
+        fechaCreacion: new Date(),
+        estado: 'iniciada',
+        usuarioId: user.uid
+      });
+
+      return { id: docRef.id };
+    } catch (error) {
+      console.error('Error al guardar transacción:', error);
+      throw error;
+    }
+  }
+
+  // Actualizar el estado de una transacción
+  async actualizarEstadoTransaccion(transaccionId: string, estado: string, datosRespuesta?: any): Promise<void> {
+    try {
+      const user = await this.afAuth.currentUser;
+      if (!user) throw new Error('Usuario no autenticado');
+
+      await this.firestore.doc(`usuarios/${user.uid}/transacciones/${transaccionId}`).update({
+        estado,
+        fechaActualizacion: new Date(),
+        respuesta: datosRespuesta || {}
+      });
+    } catch (error) {
+      console.error('Error al actualizar transacción:', error);
+      throw error;
+    }
+  }
+
+  // Procesar el pago completo (desde la selección de productos hasta la redirección a Transbank)
+  async procesarPago(monto: number, productos: any[], retiro?: string, direccion?: string): Promise<any> {
+  try {
+    const ordenCompra = this.generarOrdenCompra();
+    console.log('🧾 Orden de compra generada:', ordenCompra);
+
+    const usuario = await this.afAuth.currentUser;
+    if (!usuario) {
+      throw new Error('Debes iniciar sesión para realizar el pago');
+    }
+
+    // Store order data in localStorage before redirecting
+    localStorage.setItem('carritoWebpay', JSON.stringify(productos));
+    localStorage.setItem('direccionWebpay', direccion || '');
+    localStorage.setItem('retiroWebpay', retiro || '');
+    localStorage.setItem('currentTransaction', ordenCompra);
+
+    // Also store the transaction details in Firestore for recovery
+    await this.firestore.collection('transacciones').add({
+      ordenCompra,
+      monto,
+      productos,
+      retiro,
+      direccion,
+      fechaInicio: new Date(),
+      usuarioId: usuario.uid,
+      estado: 'iniciada'
+    });
+
+    const transaccion = await this.guardarTransaccion({
+      ordenCompra,
+      monto,
+      productos: productos.map(p => ({
+        id: p.id,
+        nombre: p.nombre,
+        precio: p.precio
+      })),
+      retiro,
+      direccion,
+      fechaInicio: new Date()
+    });
+
+    return new Promise((resolve, reject) => {
+      console.log('🔄 Iniciando transacción con Transbank...');
+
+      this.iniciarTransaccion(monto, ordenCompra).subscribe({
+        next: (response) => {
+          console.log('🔄 Respuesta del backend:', response);
+
+          if (!response.url || !response.token) {
+            this.actualizarEstadoTransaccion(transaccion.id, 'error', {
+              error: 'Respuesta inválida del servidor de pagos'
+            });
+            reject(new Error('Respuesta inválida del servidor de pagos'));
+            return;
+          }
+
+          console.log('✅ Token recibido:', response.token);
+          console.log('✅ URL de Webpay:', response.url);
+
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = response.url;
+
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'token_ws';
+          input.value = response.token;
+
+          form.appendChild(input);
+          document.body.appendChild(form);
+          form.submit();
+
+          resolve(response);
+        },
+        error: (error) => {
+          console.error('Error en iniciarTransaccion:', error);
+
+          this.actualizarEstadoTransaccion(transaccion.id, 'fallida', {
+            error: error.message || 'Error desconocido'
+          });
+
+          this.utilsSvc.presentToast({
+            message: 'Error al iniciar la transacción de pago',
+            duration: 3000,
+            color: 'danger',
+            position: 'middle',
+            icon: 'alert-circle-outline'
+          });
+
+          reject(error);
+        }
+      });
+    });
+  } catch (error) {
+    console.error('❌ Error en procesarPago:', error);
+    throw error;
+  }
+}
+}
+
+// app.component.ts
+import { Component, OnInit } from '@angular/core';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Platform } from '@ionic/angular';
+import { Router } from '@angular/router';
+import { AuthService } from './servicios/auth.service';
+import { FirebaseService } from './servicios/firebase.service';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: 'app.component.html',
+  styleUrls: ['app.component.scss'],
+})
+export class AppComponent implements OnInit {
+  constructor(
+    private platform: Platform,
+    private authService: AuthService,
+    private firebaseSvc: FirebaseService,
+    private router: Router
+  ) {
+    this.initializeApp();
+  }
+
+  ngOnInit() {
+    // Call the notification setup when the component initializes
+    if (this.platform.is('capacitor')) {
+      this.setupPushNotifications();
+    }
+  }
+
+  initializeApp() {
+    this.platform.ready().then(() => {
+      // Check if we're running on a mobile device with Capacitor
+      if (this.platform.is('capacitor')) {
+        this.setupPushNotifications();
+      }
+    });
+  }
+
+  async setupPushNotifications() {
+    try {
+      // Request permission to use push notifications
+      // iOS will prompt user and return if they granted permission or not
+      // Android will just grant without prompting
+      const result = await PushNotifications.requestPermissions();
+
+      if (result.receive === 'granted') {
+        // Register with Apple / Google to receive push via APNS/FCM
+        await PushNotifications.register();
+
+        // On success, we should be able to receive notifications
+        PushNotifications.addListener('registration',
+          async (token: { value: string }) => {
+            console.log('Push registration success, token: ' + token.value);
+
+            // Store token in your service/localStorage
+            // And register with your backend server
+            const currentUser = await this.authService.usuarioCompleto$.toPromise();
+            if (currentUser && currentUser.uid) {
+              await this.authService.registrarTokenPush(token.value, currentUser.uid);
+              console.log('Token registered for user', currentUser.uid);
+            } else {
+              // Save token temporarily to apply later when user logs in
+              localStorage.setItem('pushToken', token.value);
+              console.log('Token saved to localStorage for later use');
+            }
+          }
+        );
+
+        // Method called when notification is received
+        PushNotifications.addListener('pushNotificationReceived',
+          (notification: any) => {
+            console.log('Push notification received: ', notification);
+            // Optionally display a local notification or update UI
+          }
+        );
+
+        // Method called when tapping on a notification
+        PushNotifications.addListener('pushNotificationActionPerformed',
+          (notification: any) => {
+            console.log('Push notification action performed', notification);
+
+            // Extract data from notification
+            const data = notification.notification.data;
+            console.log('Notification data: ', data);
+
+            // Handle navigation based on notification data
+            if (data.pedidoId) {
+              if (data.tipo === 'pedido_listo') {
+                this.router.navigate(['/mis-pedidos'], {
+                  queryParams: {
+                    orden: data.ordenCompra
+                  }
+                });
+              } else if (data.tipo === 'nuevo_pedido') {
+                this.router.navigate(['/pedidos-pendientes']);
+              }
+            }
+          }
+        );
+      } else {
+        console.log('Push notifications not granted');
+      }
+    } catch (error) {
+      console.error('Error setting up push notifications: ', error);
+    }
+  }
+}
+
+
+//app.js(backend)
+const admin = require('firebase-admin');
+
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+
+
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const { WebpayPlus } = require('transbank-sdk');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middlewares
+app.use(cors());
+app.use(bodyParser.json());
+
+// Instancia de Transacción
+const transaction = new WebpayPlus.Transaction();
+
+// Iniciar una transacción
+app.post('/api/pagos/iniciar', async (req, res) => {
+  const { amount, buyOrder, sessionId, returnUrl } = req.body;
+
+  try {
+    const response = await transaction.create(buyOrder, sessionId, amount, returnUrl);
+    res.json({
+      token: response.token,
+      url: response.url
+    });
+  } catch (error) {
+    console.error('Error al iniciar transacción con Transbank:', error);
+    res.status(500).json({ error: 'No se pudo iniciar la transacción' });
+  }
+});
+
+// Verificar transacción
+app.get('/api/pagos/verificar/:token', async (req, res) => {
+  const token = req.params.token;
+
+  try {
+    const response = await transaction.commit(token);
+    res.json(response);
+  } catch (error) {
+    console.error('Error al verificar transacción:', error);
+    res.status(400).json({ error: 'No se pudo verificar la transacción' });
+  }
+});
+
+// Iniciar servidor
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
+});
+app.post('/api/notificar-vendedor', async (req, res) => {
+  const { token, title, body, data } = req.body;
+
+  // Convert data object to strings (FCM requirement)
+  const formattedData = {};
+  if (data) {
+    Object.keys(data).forEach(key => {
+      formattedData[key] = typeof data[key] === 'object'
+        ? JSON.stringify(data[key])
+        : String(data[key]);
+    });
+  }
+
+  const message = {
+    token,
+    notification: {
+      title,
+      body,
+      sound: 'default',
+      badge: '1',
+      icon: 'notification_icon',
+      android_channel_id: 'vendedor_channel'
+    },
+    data: {
+      ...formattedData,
+      click_action: 'FLUTTER_NOTIFICATION_CLICK' // Important for handling
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'default',
+        notification_priority: 'PRIORITY_HIGH',
+        default_sound: true,
+        default_vibrate_timings: true,
+        default_light_settings: true
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1,
+          content_available: 1
+        }
+      },
+      headers: {
+        'apns-priority': '10'
+      }
+    }
+  };
+
+  try {
+    await admin.messaging().send(message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error enviando push:', error);
+    res.status(500).json({ error: 'Fallo al enviar notificación', details: error.message });
+  }
+});
+
+// Apply the same improvements to notificar-cliente and notificar-bodeguero endpoints
+app.post('/api/notificar-cliente', async (req, res) => {
+  const { token, title, body, data } = req.body;
+
+  // Convert data object to strings (FCM requirement)
+  const formattedData = {};
+  if (data) {
+    Object.keys(data).forEach(key => {
+      formattedData[key] = typeof data[key] === 'object'
+        ? JSON.stringify(data[key])
+        : String(data[key]);
+    });
+  }
+
+  const message = {
+    token,
+    notification: {
+      title,
+      body,
+      sound: 'default',
+      badge: '1',
+      icon: 'notification_icon',
+      android_channel_id: 'cliente_channel'
+    },
+    data: {
+      ...formattedData,
+      click_action: 'FLUTTER_NOTIFICATION_CLICK'
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'default',
+        notification_priority: 'PRIORITY_HIGH',
+        default_sound: true,
+        default_vibrate_timings: true,
+        default_light_settings: true
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1,
+          content_available: 1
+        }
+      },
+      headers: {
+        'apns-priority': '10'
+      }
+    }
+  };
+
+  try {
+    await admin.messaging().send(message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error enviando push al cliente:', error);
+    res.status(500).json({ error: 'Fallo al enviar notificación al cliente', details: error.message });
+  }
+});
+
+app.post('/api/notificar-bodeguero', async (req, res) => {
+  const { token, title, body, data } = req.body;
+
+  // Convert data object to strings (FCM requirement)
+  const formattedData = {};
+  if (data) {
+    Object.keys(data).forEach(key => {
+      formattedData[key] = typeof data[key] === 'object'
+        ? JSON.stringify(data[key])
+        : String(data[key]);
+    });
+  }
+
+  const message = {
+    token,
+    notification: {
+      title,
+      body,
+      sound: 'default',
+      badge: '1',
+      icon: 'notification_icon',
+      android_channel_id: 'bodeguero_channel'
+    },
+    data: {
+      ...formattedData,
+      click_action: 'FLUTTER_NOTIFICATION_CLICK'
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'default',
+        notification_priority: 'PRIORITY_HIGH',
+        default_sound: true,
+        default_vibrate_timings: true,
+        default_light_settings: true
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1,
+          content_available: 1
+        }
+      },
+      headers: {
+        'apns-priority': '10'
+      }
+    }
+  };
+
+  try {
+    await admin.messaging().send(message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error enviando push al bodeguero:', error);
+    res.status(500).json({ error: 'Fallo al enviar notificación al bodeguero', details: error.message });
+  }
+});
+
+// Add a diagnostic endpoint to test tokens
+app.post('/api/test-notification', async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Se requiere un token FCM' });
+  }
+
+  const message = {
+    token,
+    notification: {
+      title: 'Prueba de Notificación',
+      body: 'Esta es una notificación de prueba para verificar la configuración.',
+      sound: 'default'
+    },
+    data: {
+      type: 'test',
+      timestamp: Date.now().toString()
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        channel_id: 'test_channel',
+        priority: 'high'
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1
+        }
+      },
+      headers: {
+        'apns-priority': '10'
+      }
+    }
+  };
+
+  try {
+    const response = await admin.messaging().send(message);
+    res.status(200).json({
+      success: true,
+      messageId: response,
+      message: 'Notificación de prueba enviada correctamente'
+    });
+  } catch (error) {
+    console.error('Error enviando notificación de prueba:', error);
+    res.status(500).json({
+      error: 'Error al enviar notificación de prueba',
+      details: error.message,
+      errorCode: error.code
+    });
+  }
+});
+
+// 2. Setup error logging for FirebaseMessaging in app.js
+// Implement a detailed diagnostic log
+app.post('/api/debug-fcm', async (req, res) => {
+  const { token, details } = req.body;
+
+  try {
+    // Store debug information
+    await admin.firestore().collection('fcm_diagnostics').add({
+      token: token || 'no-token',
+      details: details || {},
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      userAgent: req.headers['user-agent']
+    });
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error logging FCM diagnostic info:', error);
+    res.status(500).json({ error: 'Error al guardar diagnóstico' });
+  }
+});
+
