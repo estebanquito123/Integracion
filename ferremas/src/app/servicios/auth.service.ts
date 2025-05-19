@@ -46,7 +46,15 @@ export class AuthService {
 
   async login(email: string, password: string): Promise<Usuario> {
   try {
+    console.log('Intentando login con:', email);
     const userCredential = await this.afAuth.signInWithEmailAndPassword(email, password);
+
+    if (!userCredential || !userCredential.user || !userCredential.user.uid) {
+      console.error('Error: Credenciales de usuario incompletas');
+      throw new Error('Credenciales de usuario incompletas');
+    }
+
+    console.log('Login exitoso, obteniendo datos de usuario...');
     this.isAuthenticatedSubject.next(true);
 
     const userDoc = await this.firestore.collection('usuarios')
@@ -54,7 +62,15 @@ export class AuthService {
       .get()
       .toPromise();
 
+    if (!userDoc.exists) {
+      console.error('Error: Documento de usuario no encontrado');
+      throw new Error('Documento de usuario no encontrado');
+    }
+
     const usuarioData = userDoc.data() as Usuario;
+    usuarioData.uid = userCredential.user.uid; // Aseguramos que el uid esté presente
+
+    console.log('Datos de usuario obtenidos:', usuarioData);
     this.usuarioCompletoSubject.next(usuarioData);
     this.usuarioSubject.next(usuarioData.nombreCompleto || '');
     localStorage.setItem('usuario', JSON.stringify(usuarioData));
@@ -62,17 +78,26 @@ export class AuthService {
     // Check if there's a pending push token to register
     const pendingToken = localStorage.getItem('pushToken');
     if (pendingToken) {
-      await this.registrarTokenPush(pendingToken, usuarioData.uid);
+      await this.firebaseSvc.registrarTokenPush(pendingToken, usuarioData.uid);
       localStorage.removeItem('pushToken');
       console.log('Push token registrado después del login');
     } else {
-      // Try to request new token
-     await PushNotifications.register();
-
+      // Si no hay token guardado, solicitamos uno nuevo
+      try {
+        await PushNotifications.requestPermissions().then(result => {
+          if (result.receive === 'granted') {
+            PushNotifications.register();
+          }
+        });
+      } catch (pushError) {
+        console.error('Error al solicitar permisos de notificación:', pushError);
+        // Continuamos el flujo incluso si hay error con las notificaciones
+      }
     }
 
     return usuarioData;
   } catch (error) {
+    console.error('Error en proceso de login:', error);
     this.isAuthenticatedSubject.next(false);
     throw error;
   }

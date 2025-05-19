@@ -15,7 +15,7 @@ import { AngularFireMessagingModule } from '@angular/fire/compat/messaging';
 // app.module.ts
 import { FirebaseService } from './servicios/firebase.service';
 import { UtilsService } from './servicios/utils.service';
-import { NotificationService } from './servicios/push-notifications.service';
+
 
 @NgModule({
   declarations: [AppComponent],
@@ -32,8 +32,7 @@ import { NotificationService } from './servicios/push-notifications.service';
   providers: [{ provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     AuthService,
     FirebaseService,
-    UtilsService,
-    NotificationService
+    UtilsService
   ],
 
   bootstrap: [AppComponent],

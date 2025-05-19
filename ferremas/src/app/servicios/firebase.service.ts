@@ -29,7 +29,7 @@ export class FirebaseService {
 
     const cliente = clienteSnap.data() as Usuario;
 
-    if (!cliente || !cliente.pushToken) {
+    if (!cliente || !cliente.fcmToken) {
       console.warn('Cliente sin token de notificación:', clienteId);
       return false;
     }
@@ -49,7 +49,7 @@ export class FirebaseService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        token: cliente.pushToken,
+        token: cliente.fcmToken,
         title: titulo,
         body: mensaje,
         data: datos
@@ -172,14 +172,14 @@ async actualizarEstadoPago(pedidoId: string, nuevoEstado: EstadoPago): Promise<v
       });
 
       // Enviar notificación push al bodeguero si tiene token
-      if (bodeguero.pushToken) {
+      if (bodeguero.fcmToken) {
         const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
 
         await fetch('https://integracion-7xjk.onrender.com/api/notificar-bodeguero', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            token: bodeguero.pushToken,
+            token: bodeguero.fcmToken,
             title: '📦 Nuevo Pedido por Preparar',
             body: `Orden: ${pedido.ordenCompra}\nProductos: ${productosTexto}`,
             data: {
@@ -254,7 +254,7 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
 
   for (const doc of vendedoresSnap.docs) {
     const vendedor = doc.data() as Usuario;
-    if (vendedor && vendedor.pushToken) {
+    if (vendedor && vendedor.fcmToken) {
       const productosTexto = pedido.productos && Array.isArray(pedido.productos) ?
         pedido.productos.map(p => p.nombre || 'Producto').join(', ') :
         'Sin productos';
@@ -263,7 +263,7 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token: vendedor.pushToken,
+          token: vendedor.fcmToken,
           title: '💰 Pago Confirmado',
           body: `Orden ${pedido.ordenCompra || 'sin número'}: Pago por transferencia verificado por contabilidad`,
           data: {
@@ -297,12 +297,12 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
 
       const vendedor = vendedorSnap.data() as Usuario;
 
-      if (vendedor && vendedor.pushToken) {
+      if (vendedor && vendedor.fcmToken) {
         await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            token: vendedor.pushToken,
+            token: vendedor.fcmToken,
             title: '✅ Pedido Preparado',
             body: `La orden ${pedido.ordenCompra} está lista para ser entregada`,
             data: {
@@ -320,12 +320,12 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
 
       for (const doc of vendedoresSnap.docs) {
         const vendedor = doc.data() as Usuario;
-        if (vendedor.pushToken) {
+        if (vendedor.fcmToken) {
           await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              token: vendedor.pushToken,
+              token: vendedor.fcmToken,
               title: '✅ Pedido Preparado',
               body: `La orden ${pedido.ordenCompra} está lista para ser entregada`,
               data: {
@@ -386,7 +386,7 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
 
     for (const doc of vendedoresSnap.docs) {
       const vendedor = doc.data() as Usuario;
-      if (vendedor.pushToken) {
+      if (vendedor.fcmToken) {
         const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
         const tipoEntrega = pedido.retiro === 'domicilio' ? 'Despacho a domicilio' : 'Retiro en tienda';
 
@@ -394,7 +394,7 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            token: vendedor.pushToken,
+            token: vendedor.fcmToken,
             title: '🛒 Nuevo Pedido',
             body: `${tipoEntrega} - ${pedido.direccion}\nProductos: ${productosTexto}`,
             data: {
@@ -548,12 +548,12 @@ async notificarClientePedidoListo(pedido: Pedido) {
 
       const cliente = clienteSnap.data() as Usuario;
 
-      if (cliente && cliente.pushToken) {
+      if (cliente && cliente.fcmToken) {
         const response = await fetch('https://integracion-7xjk.onrender.com/api/notificar-cliente', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            token: cliente.pushToken,
+            token: cliente.fcmToken,
             title: '🎉 Tu pedido está listo',
             body: `Tu pedido con orden ${pedido.ordenCompra} está listo para ser entregado o retirado.`,
             data: {
@@ -664,7 +664,7 @@ async registrarTokenPush(token: string, uid: string): Promise<boolean> {
       userAgent: navigator.userAgent
     });
 
-    console.log('Token push registrado correctamente');
+    console.log('Token push registrado correctamente para usuario:', uid);
     return true;
   } catch (error) {
     console.error('Error al registrar token push:', error);
@@ -683,15 +683,6 @@ getPlatform(): string {
   }
   return 'web';
 }
-
-
-
-
-
-
-
-
-
 
 }
 

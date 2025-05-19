@@ -5,7 +5,7 @@ export interface Usuario {
   email: string
   password: string;
   rol: string; // cliente, vendedor, bodeguero, contador
-  pushToken?: string;
+  fcmToken?: string;
 }
 
 export interface Producto {
