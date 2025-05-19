@@ -198,6 +198,20 @@ async notificarClientePedidoListo(pedido: Pedido) {
           await loading.present();
 
           try {
+            // Verificar si tenemos el ID del cliente
+            if (!pedido.clienteId) {
+              this.utilsSvc.presentToast({
+                message: 'No se pudo identificar el cliente para este pedido. Intentando buscar...',
+                duration: 2000,
+                color: 'warning'
+              });
+            }
+            
+            // Verificar si el pedido tiene información completa
+            if (!pedido.id || !pedido.ordenCompra) {
+              throw new Error('Información del pedido incompleta');
+            }
+
             // Intentar enviar la notificación al cliente
             const result = await this.firebaseSvc.notificarClientePedidoListo(pedido);
 
@@ -208,12 +222,19 @@ async notificarClientePedidoListo(pedido: Pedido) {
                 color: 'success'
               });
             } else {
-              throw new Error('No se pudo enviar la notificación');
+              // Método alternativo si falla la notificación push
+              await this.firebaseSvc.registrarNotificacionSinPush(pedido);
+              
+              this.utilsSvc.presentToast({
+                message: 'No se pudo enviar notificación push, pero se guardó en el sistema',
+                duration: 3000,
+                color: 'warning'
+              });
             }
           } catch (error) {
             console.error('Error al notificar al cliente:', error);
             this.utilsSvc.presentToast({
-              message: `Error al enviar la notificación: ${error.message}`,
+              message: 'Error al enviar la notificación. Intente más tarde.',
               duration: 3000,
               color: 'danger'
             });
@@ -227,6 +248,7 @@ async notificarClientePedidoListo(pedido: Pedido) {
 
   await alert.present();
 }
+
 async validarPushToken(token: string): Promise<boolean> {
   try {
     const response = await fetch('https://integracion-7xjk.onrender.com/api/test-notification', {
@@ -242,5 +264,4 @@ async validarPushToken(token: string): Promise<boolean> {
     return false;
   }
 }
-
 }
