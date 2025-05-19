@@ -157,41 +157,52 @@ async actualizarEstadoPago(pedidoId: string, nuevoEstado: EstadoPago): Promise<v
 
   // Método para notificar al bodeguero de un pedido aceptado
   async notificarPedidoABodeguero(pedido: Pedido) {
-    // Primero, buscar bodegueros disponibles
-    const bodegueros = await this.firestore.collection('usuarios', ref =>
-      ref.where('rol', '==', 'bodeguero')
-    ).get().toPromise();
+  // Primero, buscar bodegueros disponibles
+  const bodegueros = await this.firestore.collection('usuarios', ref =>
+    ref.where('rol', '==', 'bodeguero')
+  ).get().toPromise();
 
-    // Asignar el pedido a un bodeguero (se podría mejorar para equilibrar la carga)
-    if (bodegueros && !bodegueros.empty) {
-      const bodeguero = bodegueros.docs[0].data() as Usuario;
+  // Asignar el pedido a un bodeguero
+  if (bodegueros && !bodegueros.empty) {
+    const bodeguero = bodegueros.docs[0].data() as Usuario;
 
-      // Actualizar el pedido con el ID del bodeguero asignado
-      await this.firestore.collection('pedidosPendientes').doc(pedido.id).update({
-        bodegueroId: bodeguero.uid
-      });
+    // Actualizar el pedido con el ID del bodeguero asignado
+    await this.firestore.collection('pedidosPendientes').doc(pedido.id).update({
+      bodegueroId: bodeguero.uid
+    });
 
-      // Enviar notificación push al bodeguero si tiene token
-      if (bodeguero.fcmToken) {
-        const productosTexto = pedido.productos?.map(p => p.nombre).join(', ') || 'Sin productos';
+    // Enviar notificación push al bodeguero si tiene token
+    if (bodeguero.fcmToken) {
+      // Crear un resumen corto de los productos en lugar de enviar toda la información
+      const productosResumen = pedido.productos && pedido.productos.length > 0
+        ? pedido.productos.length === 1
+          ? pedido.productos[0].nombre
+          : `${pedido.productos[0].nombre} y ${pedido.productos.length - 1} más`
+        : 'Sin productos';
 
+      try {
         await fetch('https://integracion-7xjk.onrender.com/api/notificar-bodeguero', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             token: bodeguero.fcmToken,
             title: '📦 Nuevo Pedido por Preparar',
-            body: `Orden: ${pedido.ordenCompra}\nProductos: ${productosTexto}`,
+            body: `Orden: ${pedido.ordenCompra}\nProductos: ${productosResumen}`,
             data: {
               pedidoId: pedido.id,
               ordenCompra: pedido.ordenCompra,
-              productos: JSON.stringify(pedido.productos)
+              // No enviar productos como JSON string
+              cantidadProductos: String(pedido.productos?.length || 0)
             }
-          })
+          }),
+          signal: AbortSignal.timeout(10000) // 10 segundos máximo
         });
+      } catch (error) {
+        console.error('Error al notificar al bodeguero:', error);
       }
     }
   }
+}
 
   async marcarPedidoVerificado(pedidoId: string, verificado: boolean = true): Promise<void> {
     return this.firestore.collection('pedidosPendientes').doc(pedidoId).update({
@@ -237,7 +248,8 @@ async actualizarEstadoPago(pedidoId: string, nuevoEstado: EstadoPago): Promise<v
     ).valueChanges({ idField: 'id' });
   }
 
-  // Notificar al vendedor de un pago confirmado por el contador
+
+// Notificar al vendedor de un pago confirmado por el contador
 async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
   if (!pedido || !pedido.id) return;
 
@@ -252,27 +264,35 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
     ref.where('rol', '==', 'vendedor')
   ).get().toPromise();
 
+  // Crear un resumen simple del pedido (evitando enviar toda la información)
+  const productosResumen = pedido.productos && Array.isArray(pedido.productos) && pedido.productos.length > 0
+    ? `${pedido.productos.length} producto(s)`
+    : 'Sin productos';
+
   for (const doc of vendedoresSnap.docs) {
     const vendedor = doc.data() as Usuario;
     if (vendedor && vendedor.fcmToken) {
-      const productosTexto = pedido.productos && Array.isArray(pedido.productos) ?
-        pedido.productos.map(p => p.nombre || 'Producto').join(', ') :
-        'Sin productos';
-
-      await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: vendedor.fcmToken,
-          title: '💰 Pago Confirmado',
-          body: `Orden ${pedido.ordenCompra || 'sin número'}: Pago por transferencia verificado por contabilidad`,
-          data: {
-            ordenCompra: pedido.ordenCompra || '',
-            metodoPago: pedido.metodoPago || '',
-            productos: JSON.stringify(pedido.productos || [])
-          }
-        })
-      });
+      try {
+        await fetch('https://integracion-7xjk.onrender.com/api/notificar-vendedor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: vendedor.fcmToken,
+            title: '💰 Pago Confirmado',
+            body: `Orden ${pedido.ordenCompra || 'sin número'}: Pago por transferencia verificado`,
+            data: {
+              pedidoId: pedido.id || '',  // Solo enviar IDs y datos esenciales
+              ordenCompra: pedido.ordenCompra || '',
+              tipo: 'pago_confirmado'
+              // No enviar productos ni detalles completos
+            }
+          }),
+          signal: AbortSignal.timeout(10000) // 10 segundos máximo
+        });
+      } catch (error) {
+        console.error(`Error enviando notificación a vendedor ${vendedor.uid}:`, error);
+        // Continuar con otros vendedores aunque uno falle
+      }
     }
   }
 
@@ -285,6 +305,16 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
     pedidoId: pedido.id || '',
     ordenCompra: pedido.ordenCompra || '',
     tipo: 'pago_confirmado'
+  });
+
+  // También guardar los detalles BÁSICOS del pedido en Firestore (no los productos completos)
+  await this.firestore.collection('detallesPedidos').doc(pedido.ordenCompra || pedido.id).set({
+    ordenCompra: pedido.ordenCompra || '',
+    metodoPago: pedido.metodoPago || '',
+    estadoPago: EstadoPago.PAGADO,
+    cantidadProductos: pedido.productos?.length || 0,
+    fechaConfirmacion: new Date().toISOString()
+    // No guardar productos completos aquí
   });
 }
 
@@ -395,10 +425,10 @@ async notificarPagoConfirmadoAlVendedor(pedido: Pedido): Promise<void> {
       const vendedor = doc.data() as Usuario;
       if (vendedor.fcmToken) {
         // Create a brief summary text instead of listing all products
-        const productosResumen = pedido.productos.length === 1 
-          ? pedido.productos[0].nombre 
+        const productosResumen = pedido.productos.length === 1
+          ? pedido.productos[0].nombre
           : `${pedido.productos[0].nombre} y ${pedido.productos.length - 1} producto(s) más`;
-          
+
         const tipoEntrega = pedido.retiro === 'domicilio' ? 'Despacho a domicilio' : 'Retiro en tienda';
 
         try {
@@ -578,7 +608,7 @@ async notificarClientePedidoListo(pedido: Pedido): Promise<boolean> {
       if (cliente && cliente.fcmToken) {
         // Validar token antes de enviar
         const tokenValido = await this.validarTokenFCM(cliente.fcmToken);
-        
+
         if (!tokenValido) {
           console.warn('Token FCM inválido para el cliente:', pedido.clienteId);
           // Si el token es inválido, actualizar el registro del usuario
@@ -738,7 +768,7 @@ getPlatform(): string {
 
 async validarTokenFCM(token: string): Promise<boolean> {
   if (!token) return false;
-  
+
   try {
     const response = await fetch('https://integracion-7xjk.onrender.com/api/test-notification', {
       method: 'POST',
@@ -748,7 +778,7 @@ async validarTokenFCM(token: string): Promise<boolean> {
     });
 
     if (!response.ok) return false;
-    
+
     const result = await response.json();
     return result.success === true;
   } catch (error) {
@@ -774,14 +804,14 @@ async registrarErrorNotificacion(usuarioId: string, token: string, error: any): 
 // Método para registrar notificación cuando falla el envío push
 async registrarNotificacionSinPush(pedido: Pedido): Promise<void> {
   if (!pedido.id || !pedido.clienteId) return;
-  
+
   try {
     // Actualizar el estado del pedido para indicar que está listo para retiro
     await this.firestore.collection('pedidosPendientes').doc(pedido.id).update({
       notificadoCliente: true,
       fechaNotificacion: new Date().toISOString()
     });
-    
+
     // Registrar en el log del sistema
     await this.firestore.collection('log_sistema').add({
       tipo: 'notificacion_fallida',
