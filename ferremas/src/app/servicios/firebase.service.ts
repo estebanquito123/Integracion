@@ -16,7 +16,55 @@ export class FirebaseService {
   private auth = inject(AngularFireAuth);
   private firestore = inject(AngularFirestore);
 
-  
+  async enviarNotificacionAlCliente(clienteId: string, titulo: string, mensaje: string, datos: any = {}) {
+  try {
+    if (!clienteId) {
+      console.error('ID de cliente no proporcionado');
+      return false;
+    }
+
+    // Buscar el usuario en Firestore para obtener su token
+    const clienteSnap = await this.firestore.collection('usuarios')
+      .doc(clienteId).get().toPromise();
+
+    const cliente = clienteSnap.data() as Usuario;
+
+    if (!cliente || !cliente.fcmToken) {
+      console.warn('Cliente sin token de notificación:', clienteId);
+      return false;
+    }
+
+    // Guardar la notificación en la colección de notificaciones
+    await this.firestore.collection('notificacionesCliente').add({
+      titulo,
+      mensaje,
+      clienteId,
+      fecha: new Date().toISOString(),
+      leido: false,
+      datos
+    });
+
+    // Enviar notificación push mediante nuestra API
+    const response = await fetch('https://integracion-7xjk.onrender.com/api/notificar-cliente', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: cliente.fcmToken,
+        title: titulo,
+        body: mensaje,
+        data: datos
+      })
+    });
+
+    const result = await response.json();
+    console.log('Resultado de notificación push:', result);
+
+    return result.success;
+  } catch (error) {
+    console.error('Error al enviar notificación al cliente:', error);
+    return false;
+  }
+}
 
   sendRecoveryEmail(email: string) {
     return this.auth.sendPasswordResetEmail(email);

@@ -14,38 +14,12 @@ admin.initializeApp({
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Configuración CORS para web, APK y producción
-const corsOptions = {
-  origin: [
-    'http://localhost:8100',         // App web local (Ionic)
-    'http://localhost:4200',         // Angular local
-    'capacitor://localhost',         // APK con Capacitor
-    'ionic://localhost',             // App Ionic en iOS/Android
-    'https://tudominio.com'          // 🔁 Agregá tu dominio de producción si aplica
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.use(cors());
 app.use(bodyParser.json());
 
-// 🔁 Función auxiliar para formatear data en notificaciones FCM
-function formatFCMData(data) {
-  const result = {};
-  if (data) {
-    Object.keys(data).forEach(key => {
-      result[key] = typeof data[key] === 'object' ? JSON.stringify(data[key]) : String(data[key]);
-    });
-  }
-  return result;
-}
-
-// 🚀 Transacciones Transbank
 const transaction = new WebpayPlus.Transaction();
 
+// Endpoint: iniciar transacción
 app.post('/api/pagos/iniciar', async (req, res) => {
   const { amount, buyOrder, sessionId, returnUrl } = req.body;
 
@@ -61,6 +35,7 @@ app.post('/api/pagos/iniciar', async (req, res) => {
   }
 });
 
+// Endpoint: verificar transacción
 app.get('/api/pagos/verificar/:token', async (req, res) => {
   const token = req.params.token;
 
@@ -73,7 +48,20 @@ app.get('/api/pagos/verificar/:token', async (req, res) => {
   }
 });
 
-// 🔔 Notificaciones Push para Vendedor
+// FUNCIONES DE NOTIFICACIÓN PUSH
+
+// Utilidad para formatear data
+function formatFCMData(data) {
+  const result = {};
+  if (data) {
+    Object.keys(data).forEach(key => {
+      result[key] = typeof data[key] === 'object' ? JSON.stringify(data[key]) : String(data[key]);
+    });
+  }
+  return result;
+}
+
+// Endpoint: notificar vendedor
 app.post('/api/notificar-vendedor', async (req, res) => {
   const { token, title, body, data } = req.body;
 
@@ -121,7 +109,7 @@ app.post('/api/notificar-vendedor', async (req, res) => {
   }
 });
 
-// 🔔 Notificación Push para Cliente
+// Endpoint: notificar cliente
 app.post('/api/notificar-cliente', async (req, res) => {
   const { token, title, body, data } = req.body;
 
@@ -169,7 +157,7 @@ app.post('/api/notificar-cliente', async (req, res) => {
   }
 });
 
-// 🔔 Notificación Push para Bodeguero
+// Endpoint: notificar bodeguero
 app.post('/api/notificar-bodeguero', async (req, res) => {
   const { token, title, body, data } = req.body;
 
@@ -217,7 +205,7 @@ app.post('/api/notificar-bodeguero', async (req, res) => {
   }
 });
 
-// 🔍 Endpoint de prueba para tokens
+// Endpoint: prueba de notificación
 app.post('/api/test-notification', async (req, res) => {
   const { token } = req.body;
 
@@ -272,7 +260,7 @@ app.post('/api/test-notification', async (req, res) => {
   }
 });
 
-// 🧪 Endpoint de diagnóstico para tokens
+// Endpoint: diagnóstico de FCM
 app.post('/api/debug-fcm', async (req, res) => {
   const { token, details } = req.body;
 
@@ -291,7 +279,7 @@ app.post('/api/debug-fcm', async (req, res) => {
   }
 });
 
-// 🟢 Iniciar servidor
+// Iniciar el servidor
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
