@@ -826,5 +826,110 @@ async registrarNotificacionSinPush(pedido: Pedido): Promise<void> {
   }
 }
 
+async procesarReembolsoPedido(pedido: Pedido): Promise<boolean> {
+  try {
+    // Actualizar el estado del pago a REEMBOLSADO
+    await this.firestore.collection('pedidosPendientes').doc(pedido.id).update({
+      estadoPago: EstadoPago.REEMBOLSADO,
+      fechaReembolso: new Date().toISOString(),
+      motivoRechazo: 'Pedido rechazado por el vendedor'
+    });
+
+    // Restaurar el inventario de los productos
+    if (pedido.productos && Array.isArray(pedido.productos)) {
+      for (const producto of pedido.productos) {
+        if (producto.id) {
+          const productoRef = this.firestore.doc(`productos/${producto.id}`);
+          const productoSnap = await productoRef.get().toPromise();
+
+          if (productoSnap.exists) {
+            const productoData = productoSnap.data() as Producto;
+            const cantidadARestaurar = producto.cantidad || 1;
+            const nuevoStock = productoData.stock + cantidadARestaurar;
+
+            await productoRef.update({
+              stock: nuevoStock
+            });
+
+            console.log(`Stock restaurado para ${producto.nombre}: ${productoData.stock} -> ${nuevoStock}`);
+          }
+        }
+      }
+    }
+
+    // Registrar el reembolso en el historial
+    await this.firestore.collection('historialReembolsos').add({
+      ordenCompra: pedido.ordenCompra,
+      clienteId: pedido.clienteId,
+      montoReembolsado: pedido.montoTotal || this.calcularMontoTotalPedido(pedido),
+      metodoPagoOriginal: pedido.metodoPago,
+      fechaReembolso: new Date().toISOString(),
+      motivo: 'Pedido rechazado por el vendedor',
+      procesadoPor: 'sistema' // o el UID del vendedor si lo tienes disponible
+    });
+
+    // Notificar al cliente sobre el reembolso
+    await this.notificarReembolsoAlCliente(pedido);
+
+    return true;
+  } catch (error) {
+    console.error('Error al procesar reembolso:', error);
+    return false;
+  }
+}
+
+// Método para notificar al cliente sobre el reembolso
+async notificarReembolsoAlCliente(pedido: Pedido): Promise<void> {
+  try {
+    const montoReembolso = pedido.montoTotal || this.calcularMontoTotalPedido(pedido);
+
+    // Guardar notificación en la colección
+    await this.firestore.collection('notificacionesCliente').add({
+      titulo: '💰 Reembolso Procesado',
+      mensaje: `Su pedido ${pedido.ordenCompra} ha sido rechazado. El reembolso de $${montoReembolso.toLocaleString('es-CL')} será procesado en los próximos días hábiles.`,
+      clienteId: pedido.clienteId,
+      fecha: new Date().toISOString(),
+      leido: false,
+      tipo: 'reembolso',
+      pedidoId: pedido.id,
+      ordenCompra: pedido.ordenCompra,
+      montoReembolso: montoReembolso
+    });
+
+    // Si el cliente tiene token FCM, enviar notificación push
+    if (pedido.clienteId) {
+      const clienteSnap = await this.firestore.collection('usuarios')
+        .doc(pedido.clienteId).get().toPromise();
+
+      const cliente = clienteSnap.data() as Usuario;
+
+      if (cliente && cliente.fcmToken) {
+        try {
+          await fetch('https://integracion-7xjk.onrender.com/api/notificar-cliente', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: cliente.fcmToken,
+              title: '💰 Reembolso Procesado',
+              body: `Su pedido ${pedido.ordenCompra} ha sido rechazado. Reembolso: $${montoReembolso.toLocaleString('es-CL')}`,
+              data: {
+                tipo: 'reembolso',
+                pedidoId: pedido.id,
+                ordenCompra: pedido.ordenCompra,
+                montoReembolso: montoReembolso.toString()
+              }
+            }),
+            signal: AbortSignal.timeout(10000)
+          });
+        } catch (error) {
+          console.error('Error enviando notificación push de reembolso:', error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error al notificar reembolso al cliente:', error);
+  }
+}
+
 }
 

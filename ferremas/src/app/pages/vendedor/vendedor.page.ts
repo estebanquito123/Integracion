@@ -94,49 +94,96 @@ export class VendedorPage implements OnInit {
     }
   }
 
-  async rechazarPedido(pedido: Pedido) {
-    const alert = await this.alertCtrl.create({
-      header: 'Rechazar Pedido',
-      message: '¿Estás seguro de que quieres rechazar este pedido?',
-      buttons: [
-        {
-          text: 'Cancelar',
-          role: 'cancel'
-        },
-        {
-          text: 'Rechazar',
-          handler: async () => {
-            const loading = await this.utilsSvc.loading();
-            await loading.present();
+async rechazarPedido(pedido: Pedido) {
+  const alert = await this.alertCtrl.create({
+    header: 'Rechazar Pedido',
+    message: `¿Estás seguro de que quieres rechazar este pedido?
 
-            try {
-              await this.firebaseSvc.actualizarEstadoPedido(pedido.id, EstadoPedido.RECHAZADO);
+    <br><br><strong>Orden:</strong> ${pedido.ordenCompra}
+    <br><strong>Monto:</strong> $${(pedido.montoTotal || this.calcularMontoTotal(pedido)).toLocaleString('es-CL')}
 
-              // Opcionalmente, notificar al cliente que su pedido fue rechazado
-              // await this.firebaseSvc.notificarRechazoAlCliente(pedido);
+    <br><br><small>Al rechazar este pedido, se procesará automáticamente el reembolso al cliente y se restaurará el inventario.</small>`,
+    buttons: [
+      {
+        text: 'Cancelar',
+        role: 'cancel'
+      },
+      {
+        text: 'Rechazar y Reembolsar',
+        cssClass: 'danger-button',
+        handler: async () => {
+          const loading = await this.utilsSvc.loading();
+          await loading.present();
+
+          try {
+            // Actualizar el estado del pedido a RECHAZADO
+            await this.firebaseSvc.actualizarEstadoPedido(pedido.id, EstadoPedido.RECHAZADO);
+
+            // Procesar el reembolso
+            const reembolsoExitoso = await this.firebaseSvc.procesarReembolsoPedido(pedido);
+
+            if (reembolsoExitoso) {
+              // Mostrar mensaje de confirmación con detalles del reembolso
+              const confirmAlert = await this.alertCtrl.create({
+                header: '✅ Pedido Rechazado',
+                message: `
+                  <strong>Pedido rechazado exitosamente</strong>
+                  <br><br>
+                  <ion-icon name="checkmark-circle" style="color: green;"></ion-icon> Reembolso procesado: $${(pedido.montoTotal || this.calcularMontoTotal(pedido)).toLocaleString('es-CL')}
+                  <br>
+                  <ion-icon name="checkmark-circle" style="color: green;"></ion-icon> Inventario restaurado
+                  <br>
+                  <ion-icon name="checkmark-circle" style="color: green;"></ion-icon> Cliente notificado
+
+                  <br><br><small>El cliente recibirá su reembolso en los próximos días hábiles.</small>
+                `,
+                buttons: ['Entendido']
+              });
+
+              await confirmAlert.present();
 
               this.utilsSvc.presentToast({
-                message: 'Pedido rechazado correctamente',
-                duration: 2000,
-                color: 'success'
+                message: 'Pedido rechazado y reembolso procesado correctamente',
+                duration: 3000,
+                color: 'success',
+                icon: 'checkmark-circle'
               });
-            } catch (error) {
-              console.error('Error al rechazar pedido:', error);
-              this.utilsSvc.presentToast({
-                message: 'Error al rechazar el pedido',
-                duration: 2000,
-                color: 'danger'
-              });
-            } finally {
-              loading.dismiss();
+            } else {
+              throw new Error('Error al procesar el reembolso');
             }
+
+          } catch (error) {
+            console.error('Error al rechazar pedido:', error);
+
+            // Mostrar mensaje de error detallado
+            const errorAlert = await this.alertCtrl.create({
+              header: '❌ Error al Procesar',
+              message: `
+                Hubo un problema al rechazar el pedido y procesar el reembolso.
+                Por favor, contacta al administrador del sistema para resolver este problema manualmente.
+                 ${pedido.ordenCompra}
+              `,
+              buttons: ['Entendido']
+            });
+
+            await errorAlert.present();
+
+            this.utilsSvc.presentToast({
+              message: 'Error al procesar el rechazo del pedido',
+              duration: 3000,
+              color: 'danger',
+              icon: 'alert-circle'
+            });
+          } finally {
+            loading.dismiss();
           }
         }
-      ]
-    });
+      }
+    ]
+  });
 
-    await alert.present();
-  }
+  await alert.present();
+}
 
   async marcarComoEntregado(pedido: Pedido) {
     const alert = await this.alertCtrl.create({
@@ -206,7 +253,7 @@ async notificarClientePedidoListo(pedido: Pedido) {
                 color: 'warning'
               });
             }
-            
+
             // Verificar si el pedido tiene información completa
             if (!pedido.id || !pedido.ordenCompra) {
               throw new Error('Información del pedido incompleta');
@@ -224,7 +271,7 @@ async notificarClientePedidoListo(pedido: Pedido) {
             } else {
               // Método alternativo si falla la notificación push
               await this.firebaseSvc.registrarNotificacionSinPush(pedido);
-              
+
               this.utilsSvc.presentToast({
                 message: 'No se pudo enviar notificación push, pero se guardó en el sistema',
                 duration: 3000,
@@ -263,5 +310,16 @@ async validarPushToken(token: string): Promise<boolean> {
     console.error('Error validando token push:', error);
     return false;
   }
+}
+
+private calcularMontoTotal(pedido: Pedido): number {
+  if (!pedido.productos || !Array.isArray(pedido.productos)) {
+    return 0;
+  }
+
+  return pedido.productos.reduce((total, producto) => {
+    const cantidad = producto.cantidad || 1;
+    return total + (producto.precio * cantidad);
+  }, 0);
 }
 }

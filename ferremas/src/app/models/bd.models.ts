@@ -65,6 +65,7 @@ export interface Pedido {
   montoTotal?: number; // Agregado para facilitar cálculos de contabilidad
   fechaEntrega?: string; // Fecha cuando se entregó el pedido
   verificadoPorContador?: boolean; // Flag para que el contador sepa qué pedidos ya revisó
+  fechaRechazo?: string
 }
 
 // Interfaz para transacciones
