@@ -20,7 +20,7 @@ export class TransbankService {
   private router = inject(Router);
 
   // URL del backend que maneja la comunicación con Transbank
-  private backendApiUrl = environment.backendApiUrl || 'http://localhost:3000/api';
+  private backendApiUrl = environment.backendApiUrl || 'https://integracion-7xjk.onrender.com/api';
 
   // Iniciar una transacción con Transbank a través del backend
   iniciarTransaccion(monto: number, ordenCompra: string): Observable<any> {
