@@ -10,12 +10,26 @@
         <div class="name">{{producto.nombre}}</div>
         <div class="data">
           <strong>Precio: </strong> {{producto.precio | currency: 'CLP'}} <br>
-          <strong>Stock: </strong> {{producto.stock}}
+          <strong>Stock: </strong>
+          <span [ngClass]="{'stock-agotado': producto.stock === 0, 'stock-bajo': producto.stock > 0 && producto.stock <= 5}">
+            {{producto.stock === 0 ? 'AGOTADO' : producto.stock}}
+          </span>
+        </div>
+        <!-- Mensaje de producto no disponible -->
+        <div *ngIf="producto.stock === 0" class="mensaje-agotado">
+          <ion-text color="danger">
+            <small><strong>Producto no disponible</strong></small>
+          </ion-text>
         </div>
       </ion-label>
-      <ion-button (click)="agregarAlCarrito(producto)">
+
+      <!-- Botón deshabilitado si no hay stock -->
+      <ion-button
+        (click)="agregarAlCarrito(producto)"
+        [disabled]="producto.stock === 0"
+        [color]="producto.stock === 0 ? 'medium' : 'primary'">
         <ion-icon name="cart-outline" slot="start"></ion-icon>
-        Agregar al carrito
+        {{producto.stock === 0 ? 'Sin stock' : 'Agregar al carrito'}}
       </ion-button>
     </ion-item>
   </ion-list>
@@ -26,5 +40,5 @@
       <ion-icon name="cart"></ion-icon>
     </ion-fab-button>
   </ion-fab>
-</ion-content>
 <app-footer></app-footer>
+</ion-content>

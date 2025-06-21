@@ -43,6 +43,9 @@
       <ion-select formControlName="rol">
         <ion-select-option value="administrador">Administrador</ion-select-option>
         <ion-select-option value="cliente">Cliente</ion-select-option>
+        <ion-select-option value="vendedor">Vendedor</ion-select-option>
+        <ion-select-option value="bodeguero">Bodeguero</ion-select-option>
+        <ion-select-option value="contador">Contador</ion-select-option>
       </ion-select>
     </ion-item>
     <ion-text color="danger" *ngIf="registroForm.get('rol').hasError('required') && registroForm.get('rol').touched">
@@ -53,7 +56,7 @@
     <ion-button expand="block" type="submit" [disabled]="registroForm.invalid">Registrar</ion-button>
   </form>
 
-  <app-footer></app-footer>
+<app-footer></app-footer>
 </ion-content>
 
 

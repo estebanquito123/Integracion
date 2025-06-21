@@ -46,6 +46,34 @@ const routes: Routes = [
     path: 'transbank-result',
     loadChildren: () => import('./pages/transbank-result/transbank-result.module').then( m => m.TransbankResultPageModule)
   },
+  {
+    path: 'bodeguero',
+    loadChildren: () => import('./pages/bodeguero/bodeguero.module').then( m => m.BodegueroPageModule)
+  },
+  {
+    path: 'contador',
+    loadChildren: () => import('./pages/contador/contador.module').then( m => m.ContadorPageModule)
+  },
+  {
+    path: 'crud-usuarios',
+    loadChildren: () => import('./pages/crud-usuarios/crud-usuarios.module').then( m => m.CrudUsuariosPageModule)
+  },
+  {
+    path: 'notificaciones',
+    loadChildren: () => import('./pages/notificaciones/notificaciones.module').then( m => m.NotificacionesPageModule)
+  },
+  {
+    path: 'productos-bodega',
+    loadChildren: () => import('./pages/productos-bodega/productos-bodega.module').then( m => m.ProductosBodegaPageModule)
+  },
+  {
+    path: 'sucursales',
+    loadChildren: () => import('./pages/sucursales/sucursales.module').then( m => m.SucursalesPageModule)
+  },
+  {
+    path: 'sucursales-cliente',
+    loadChildren: () => import('./pages/sucursales-cliente/sucursales-cliente.module').then( m => m.SucursalesClientePageModule)
+  },
 
 
 ];

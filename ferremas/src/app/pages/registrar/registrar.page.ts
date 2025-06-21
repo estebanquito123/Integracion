@@ -1,5 +1,6 @@
-import { UtilsService } from 'src/app/servicios/utils.service';
+
 //registrar.page.ts
+import { UtilsService } from 'src/app/servicios/utils.service';
 import { Component, inject, OnInit } from '@angular/core';
 import { AuthService } from 'src/app/servicios/auth.service';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -38,9 +39,28 @@ export class RegistrarPage implements OnInit {
 
     try {
       const resultado = await this.authService.registrarNuevoUsuario(nombreCompleto, email, password, rol);
-      if (resultado) {
-        this.mostrarAlerta('Éxito', 'Usuario registrado exitosamente');
-        const ruta = rol === 'administrador' ? '/admin' : '/cliente';
+    if (resultado) {
+  this.mostrarAlerta('Éxito', 'Usuario registrado exitosamente');
+
+  let ruta = '/inicio'; // ruta por defecto
+
+  switch (rol) {
+    case 'administrador':
+      ruta = '/admin';
+      break;
+    case 'cliente':
+      ruta = '/cliente';
+      break;
+    case 'vendedor':
+      ruta = '/vendedor';
+      break;
+    case 'bodeguero':
+      ruta = '/bodeguero';
+      break;
+    case 'contador':
+      ruta = '/contador';
+      break;
+  }
         this.router.navigate([ruta]);
       }
     } catch (error) {

@@ -1,7 +1,10 @@
-
+// ✅ transbank-result.page.ts actualizado para recuperar datos desde transacciones si localStorage está vacío
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
+import { FirebaseService } from 'src/app/servicios/firebase.service';
+import { UtilsService } from 'src/app/servicios/utils.service';
 
 @Component({
   selector: 'app-transbank-result',
@@ -9,33 +12,32 @@ import { HttpClient } from '@angular/common/http';
   styleUrls: ['./transbank-result.page.scss'],
 })
 export class TransbankResultPage implements OnInit {
-  estado: 'exito' | 'fallo' | 'desconocido' = 'desconocido';
+  estado: 'exito' | 'fallo' | 'desconocido' | null = null;
   datos: any = {};
   detallesTransaccion: any = null;
-  cargando: boolean = true;
+  cargando: boolean = false;
 
   constructor(
     private route: ActivatedRoute,
-    private http: HttpClient
+    private http: HttpClient,
+    private firebaseSvc: FirebaseService,
+    private router: Router,
+    private utilsSvc: UtilsService
   ) {}
 
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
-      console.log('Parámetros Transbank:', params);
-      this.datos = params;
+      const tokenWs = params['token_ws'];
+      const tbkToken = params['TBK_TOKEN'];
 
-      // Si TBK_TOKEN existe, usamos eso para verificar estado
-      if (params['TBK_TOKEN']) {
-        this.verificarEstadoTransaccion(params['TBK_TOKEN']);
-      }
-      // Si token_ws existe, probablemente es resultado directo y exitoso
-      else if (params['token_ws']) {
-        this.verificarEstadoTransaccion(params['token_ws']);
-      }
-      // Modo fallback o desconocido
-      else {
+      if (tbkToken) {
+        this.estado = 'fallo';
+        this.datos.TBK_TOKEN = tbkToken;
+        this.datos.TBK_ORDEN_COMPRA = params['TBK_ORDEN_COMPRA'];
+      } else if (tokenWs) {
+        this.verificarEstadoTransaccion(tokenWs);
+      } else {
         this.estado = 'desconocido';
-        this.cargando = false;
       }
     });
   }
@@ -43,26 +45,24 @@ export class TransbankResultPage implements OnInit {
   verificarEstadoTransaccion(token: string) {
     this.cargando = true;
 
-    // Llamar al backend para verificar el estado real de la transacción
-    this.http.get(`http://localhost:3000/api/pagos/verificar/${token}`)
+    this.http.get(`${environment.backendApiUrl}/pagos/verificar/${token}`)
       .subscribe(
         (response: any) => {
-          console.log('Respuesta de verificación:', response);
           this.detallesTransaccion = response;
 
-          // Verificar si la transacción fue exitosa según la respuesta
           if (response.status === 'AUTHORIZED') {
             this.estado = 'exito';
-            this.datos.token_ws = token; // Asegurar que token_ws exista para la vista
+            this.datos.token_ws = token;
+            this.registrarPedidoYNotificar(response);
           } else {
             this.estado = 'fallo';
             this.datos.TBK_TOKEN = token;
             this.datos.TBK_ORDEN_COMPRA = response.buy_order || 'No disponible';
           }
+
           this.cargando = false;
         },
         (error) => {
-          console.error('Error al verificar estado:', error);
           this.estado = 'fallo';
           this.datos.TBK_TOKEN = token;
           this.datos.TBK_ORDEN_COMPRA = 'Error en verificación';
@@ -70,4 +70,109 @@ export class TransbankResultPage implements OnInit {
         }
       );
   }
+
+  async registrarPedidoYNotificar(transaccion: any) {
+  const ordenCompra = transaccion.buy_order;
+  const metodoPago = 'webpay';
+
+  // First, try to get data from localStorage
+  let productos = JSON.parse(localStorage.getItem('carritoWebpay') || '[]');
+  let direccion = localStorage.getItem('direccionWebpay') || '';
+  let retiro = localStorage.getItem('retiroWebpay') || '';
+
+  // Debug logs
+  console.log('Datos de localStorage:', { productos, direccion, retiro });
+
+  // If data is missing, try to get from Firestore
+  if (!productos.length || !direccion || !retiro) {
+    console.log('Intentando recuperar datos desde Firestore para orden:', ordenCompra);
+    const transData = await this.firebaseSvc.obtenerTransaccionPorOrden(ordenCompra);
+    console.log('Datos recuperados de Firestore:', transData);
+
+    if (transData) {
+      productos = transData.productos || productos;
+      direccion = transData.direccion || direccion;
+      retiro = transData.retiro || retiro;
+    }
+  }
+
+  // If we still don't have products, use a fallback
+  if (!productos.length) {
+    console.error('No se pudieron recuperar los productos del pedido');
+    this.utilsSvc.presentToast({
+      message: 'Error al procesar el pago: datos incompletos',
+      duration: 3000,
+      color: 'danger'
+    });
+    return;
+  }
+
+  // Obtener el ID del usuario actual
+  const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const clienteId = usuario.uid;
+
+  // Register purchase in user's collection
+  try {
+    for (const producto of productos) {
+      await this.firebaseSvc.guardarCompra({
+        productoId: producto.id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+        fecha: new Date().toISOString(),
+        ordenCompra,
+        estadoPago: 'pagado',
+        metodoPago,
+        direccion,
+        retiro
+      });
+    }
+
+    // Notify the seller (save to pedidosPendientes collection)
+    const pedidoData = {
+      productos,
+      ordenCompra,
+      metodoPago,
+      direccion,
+      retiro,
+      fecha: new Date().toISOString(),
+      estadoPago: 'pagado',
+      clienteId // Añadimos el ID del cliente a los datos del pedido
+    };
+
+    // Guardar el pedido y obtener el ID del documento
+    const pedidoRef = await this.firebaseSvc.notificarPedidoAVendedor(pedidoData);
+
+    // Si el pedido se guardó correctamente y tenemos su ID
+    if (pedidoRef && pedidoRef.id) {
+      console.log('Pedido guardado con ID:', pedidoRef.id);
+      console.log('Pedido guardado:', pedidoRef);
+    }
+
+    console.log('Pedido guardado correctamente en pedidosPendientes');
+
+    // Send push notification to seller
+    await this.firebaseSvc.enviarNotificacionAlVendedor(pedidoData);
+    console.log('Notificación push enviada al vendedor');
+
+    // Clean up localStorage
+    localStorage.removeItem('carritoWebpay');
+    localStorage.removeItem('direccionWebpay');
+    localStorage.removeItem('retiroWebpay');
+    localStorage.removeItem('currentTransaction');
+
+    this.utilsSvc.presentToast({
+      message: 'Pago procesado correctamente',
+      duration: 2000,
+      color: 'success'
+    });
+
+  } catch (error) {
+    console.error('Error al registrar el pedido:', error);
+    this.utilsSvc.presentToast({
+      message: 'Error al registrar el pedido',
+      duration: 3000,
+      color: 'danger'
+    });
+  }
+}
 }

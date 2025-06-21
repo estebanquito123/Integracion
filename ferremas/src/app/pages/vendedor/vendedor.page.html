@@ -1,13 +1,154 @@
-<ion-header [translucent]="true">
+<!-- vendedor.page.html -->
+<ion-header>
+   <app-header></app-header>
   <ion-toolbar>
-    <ion-title>vendedor</ion-title>
+    <ion-title>Gestión de Pedidos</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">vendedor</ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-content class="ion-padding">
+  <ion-segment [(ngModel)]="segmento" (ionChange)="cambiarSegmento()">
+    <ion-segment-button value="pendientes">
+      <ion-label>Pendientes</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="aceptados">
+      <ion-label>Aceptados</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="listoDespacho">
+      <ion-label>Listo para despacho</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="rechazados">
+      <ion-label>Rechazados</ion-label>
+    </ion-segment-button>
+  </ion-segment>
+
+  <!-- Pedidos pendientes -->
+  <div *ngIf="segmento === 'pendientes'">
+    <ion-list *ngIf="pedidosPendientes.length > 0; else sinPendientes">
+      <ion-item *ngFor="let pedido of pedidosPendientes">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Pago:</strong> {{ pedido.metodoPago }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <p><strong>Entrega:</strong> {{ pedido.retiro }}</p>
+          <div *ngIf="pedido.productos?.length">
+            <p><strong>Productos:</strong></p>
+            <ul>
+              <li *ngFor="let p of pedido.productos">
+                {{ p.nombre }} - ${{ p.precio }}
+              </li>
+            </ul>
+          </div>
+        </ion-label>
+        <ion-buttons slot="end">
+          <ion-button color="success" (click)="aceptarPedido(pedido)">
+            <ion-icon name="checkmark-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+          <ion-button color="danger" (click)="rechazarPedido(pedido)">
+            <ion-icon name="close-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinPendientes>
+      <ion-text color="medium" class="ion-text-center">
+        <p>No hay pedidos pendientes por revisar.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+
+  <!-- Pedidos aceptados -->
+  <div *ngIf="segmento === 'aceptados'">
+    <ion-list *ngIf="pedidosAceptados.length > 0; else sinAceptados">
+      <ion-item *ngFor="let pedido of pedidosAceptados">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Estado:</strong> {{ obtenerEstadoTexto(pedido.estadoPedido) }}</p>
+          <p><strong>Pago:</strong> {{ pedido.metodoPago }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <div *ngIf="pedido.productos?.length">
+            <p><strong>Productos:</strong></p>
+            <ul>
+              <li *ngFor="let p of pedido.productos">
+                {{ p.nombre }} - ${{ p.precio }}
+              </li>
+            </ul>
+          </div>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinAceptados>
+      <ion-text color="medium" class="ion-text-center">
+        <p>No hay pedidos aceptados.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+
+  <!-- Pedidos listos para despacho -->
+  <div *ngIf="segmento === 'listoDespacho'">
+  <ion-list *ngIf="pedidosListoDespacho.length > 0; else sinListoDespacho">
+    <ion-item *ngFor="let pedido of pedidosListoDespacho">
+      <ion-label>
+        <h2>Orden: {{ pedido.ordenCompra }}</h2>
+        <p><strong>Estado:</strong> Listo para entrega</p>
+        <p><strong>Pago:</strong> {{ pedido.metodoPago }}</p>
+        <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+        <div *ngIf="pedido.productos?.length">
+          <p><strong>Productos:</strong></p>
+          <ul>
+            <li *ngFor="let p of pedido.productos">
+              {{ p.nombre }} - ${{ p.precio }}
+            </li>
+          </ul>
+        </div>
+      </ion-label>
+      <ion-buttons slot="end">
+        <!-- Botón para notificar al cliente -->
+        <ion-button color="primary" (click)="notificarClientePedidoListo(pedido)">
+          <ion-icon name="notifications-outline" slot="icon-only"></ion-icon>
+        </ion-button>
+        <!-- Botón para marcar como entregado -->
+        <ion-button color="success" (click)="marcarComoEntregado(pedido)">
+          <ion-icon name="checkmark-done-outline" slot="icon-only"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-item>
+  </ion-list>
+
+  <ng-template #sinListoDespacho>
+    <ion-text color="medium" class="ion-text-center">
+      <p>No hay pedidos listos para despacho.</p>
+    </ion-text>
+  </ng-template>
+</div>
+
+  <!-- Pedidos rechazados -->
+  <div *ngIf="segmento === 'rechazados'">
+    <ion-list *ngIf="pedidosRechazados.length > 0; else sinRechazados">
+      <ion-item *ngFor="let pedido of pedidosRechazados">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Pago:</strong> {{ pedido.metodoPago }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <div *ngIf="pedido.productos?.length">
+            <p><strong>Productos:</strong></p>
+            <ul>
+              <li *ngFor="let p of pedido.productos">
+                {{ p.nombre }} - ${{ p.precio }}
+              </li>
+            </ul>
+          </div>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinRechazados>
+      <ion-text color="medium" class="ion-text-center">
+        <p>No hay pedidos rechazados.</p>
+      </ion-text>
+    </ng-template>
+  </div>
 </ion-content>
+<app-footer></app-footer>

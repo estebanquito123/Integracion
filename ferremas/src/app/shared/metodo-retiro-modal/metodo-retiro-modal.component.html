@@ -1,0 +1,39 @@
+<!--metodo-retiro-modal.page.html-->
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Retiro del pedido</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cerrar()">Cerrar</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <form [formGroup]="retiroForm">
+    <ion-item>
+      <ion-label>Tipo de retiro</ion-label>
+      <ion-select formControlName="tipoRetiro">
+        <ion-select-option value="tienda">Retiro en tienda</ion-select-option>
+        <ion-select-option value="domicilio">Despacho a domicilio</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <div *ngIf="retiroForm.value.tipoRetiro === 'domicilio'">
+      <ion-item>
+        <ion-label position="floating">Dirección</ion-label>
+        <ion-input formControlName="direccion"></ion-input>
+      </ion-item>
+    </div>
+
+    <div *ngIf="retiroForm.value.tipoRetiro === 'tienda'">
+      <ion-item>
+        <ion-label>Sucursal</ion-label>
+        <ion-select formControlName="sucursal">
+          <ion-select-option *ngFor="let s of sucursales" [value]="s.nombre">{{ s.nombre }}</ion-select-option>
+        </ion-select>
+      </ion-item>
+    </div>
+
+    <ion-button expand="block" class="ion-margin-top" (click)="continuar()">Continuar</ion-button>
+  </form>
+</ion-content>

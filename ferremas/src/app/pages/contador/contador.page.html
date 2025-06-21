@@ -1,0 +1,97 @@
+<!-- contador.page.html -->
+ <app-header></app-header>
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Panel del Contador</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-segment [(ngModel)]="segmento" (ionChange)="cambiarSegmento()">
+    <ion-segment-button value="transferencias">
+      <ion-label>Pagos por Transferencia</ion-label>
+    </ion-segment-button>
+    <ion-segment-button value="entregados">
+      <ion-label>Pedidos Entregados</ion-label>
+    </ion-segment-button>
+  </ion-segment>
+
+  <!-- Pagos por transferencia pendientes -->
+  <div *ngIf="segmento === 'transferencias'">
+    <ion-list *ngIf="pedidosPendientesPago.length > 0; else sinTransferencias">
+      <ion-item *ngFor="let pedido of pedidosPendientesPago">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Monto:</strong> ${{ pedido.montoTotal || calcularMontoTotalPedido(pedido) }}</p>
+          <p><strong>Dirección:</strong> {{ pedido.direccion }}</p>
+          <p><strong>Retiro:</strong> {{ pedido.retiro }}</p>
+          <p><strong>Fecha:</strong> {{ formatearFecha(pedido.fecha) }}</p>
+        </ion-label>
+        <ion-buttons slot="end">
+          <ion-button color="success" (click)="confirmarPagoTransferencia(pedido)">
+            <ion-icon name="checkmark-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+          <ion-button color="danger" (click)="rechazarPagoTransferencia(pedido)">
+            <ion-icon name="close-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinTransferencias>
+      <ion-text color="medium">
+        <p class="ion-text-center">No hay pagos por transferencia pendientes.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+
+  <!-- Pedidos entregados y resumen -->
+  <div *ngIf="segmento === 'entregados'">
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Resumen Financiero</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item>
+          <ion-label>Total Ingresos</ion-label>
+          <ion-note slot="end" color="success">${{ totalIngresos }}</ion-note>
+        </ion-item>
+        <ion-item>
+          <ion-label>Ingresos por WebPay</ion-label>
+          <ion-note slot="end">${{ ingresosPorWebpay }}</ion-note>
+        </ion-item>
+        <ion-item>
+          <ion-label>Ingresos por Transferencia</ion-label>
+          <ion-note slot="end">${{ ingresosPorTransferencia }}</ion-note>
+        </ion-item>
+        <ion-item>
+          <ion-label>Total Pedidos Entregados</ion-label>
+          <ion-note slot="end">{{ totalPedidosEntregados }}</ion-note>
+        </ion-item>
+        <ion-button expand="block" color="tertiary" (click)="generarReporte()">
+          Generar Reporte Mensual
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-list *ngIf="pedidosEntregados.length > 0; else sinEntregados">
+      <ion-item *ngFor="let pedido of pedidosEntregados">
+        <ion-label>
+          <h2>Orden: {{ pedido.ordenCompra }}</h2>
+          <p><strong>Monto:</strong> ${{ pedido.montoTotal || calcularMontoTotalPedido(pedido) }}</p>
+          <p><strong>Método de Pago:</strong> {{ pedido.metodoPago }}</p>
+          <p><strong>Fecha de Entrega:</strong> {{ formatearFecha(pedido.fechaEntrega || pedido.fecha) }}</p>
+        </ion-label>
+      </ion-item>
+    </ion-list>
+
+    <ng-template #sinEntregados>
+      <ion-text color="medium">
+        <p class="ion-text-center">No hay pedidos entregados registrados.</p>
+      </ion-text>
+    </ng-template>
+  </div>
+<app-footer></app-footer>
+</ion-content>
+
+

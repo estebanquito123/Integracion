@@ -1,3 +1,5 @@
+<!-- ✅ carro.page.html -->
+<app-header></app-header>
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
@@ -17,6 +19,7 @@
         <ion-label>
           <h2>{{ p.nombre }}</h2>
           <p>Precio: {{ p.precio | currency: 'CLP' }}</p>
+          <p>Cantidad: {{p.cantidad}}</p>
         </ion-label>
         <ion-button fill="clear" color="danger" (click)="eliminarProducto(i)">
           <ion-icon name="trash-outline"></ion-icon>
@@ -36,7 +39,7 @@
           </ion-text>
         </ion-item>
 
-        <!-- Botón para finalizar compra (mostrará opciones de pago) -->
+        <!-- Botón para finalizar compra (ahora abre opciones de retiro y pago) -->
         <ion-button expand="block" color="success" (click)="finalizarCompra()" class="ion-margin-top">
           <ion-icon name="card-outline" slot="start"></ion-icon>
           Finalizar compra
@@ -46,28 +49,6 @@
           <ion-icon name="trash-outline" slot="start"></ion-icon>
           Vaciar carrito
         </ion-button>
-      </ion-card-content>
-    </ion-card>
-
-    <!-- Banner informativo sobre medios de pago -->
-    <ion-card>
-      <ion-card-header>
-        <ion-card-subtitle>Medios de pago disponibles</ion-card-subtitle>
-      </ion-card-header>
-      <ion-card-content>
-        <div class="payment-methods">
-          <div class="payment-method">
-            <ion-icon name="card-outline" size="large"></ion-icon>
-            <span>Webpay (tarjetas de crédito y débito)</span>
-          </div>
-          <div class="payment-method">
-            <ion-icon name="cash-outline" size="large"></ion-icon>
-            <span>Efectivo al retirar</span>
-          </div>
-        </div>
-        <p>
-          Todos los pagos con tarjeta son procesados de forma segura a través de Transbank Webpay.
-        </p>
       </ion-card-content>
     </ion-card>
   </div>
@@ -83,5 +64,6 @@
       </ion-button>
     </div>
   </ng-template>
-</ion-content>
 <app-footer></app-footer>
+</ion-content>
+

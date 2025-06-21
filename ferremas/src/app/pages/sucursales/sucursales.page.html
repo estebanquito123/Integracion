@@ -1,0 +1,149 @@
+<!-- sucursales.page.html -->
+ <app-header></app-header>
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>
+      Gestión de Sucursales
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="ion-padding">
+    <!-- Formulario -->
+    <form [formGroup]="sucursalForm" (ngSubmit)="onCreate()">
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>{{ isEditMode ? 'Editar Sucursal' : 'Nueva Sucursal' }}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <ion-item>
+            <ion-label position="floating">Nombre</ion-label>
+            <ion-input formControlName="nombre" type="text"></ion-input>
+          </ion-item>
+          <ion-note color="danger" *ngIf="sucursalForm.get('nombre').invalid && sucursalForm.get('nombre').touched">
+            El nombre es requerido
+          </ion-note>
+
+          <ion-item>
+            <ion-label position="floating">Dirección</ion-label>
+            <ion-input formControlName="direccion" type="text"></ion-input>
+          </ion-item>
+          <ion-button expand="block" fill="clear" size="small" (click)="buscarDireccion()">
+            Buscar en el mapa
+          </ion-button>
+          <ion-note color="danger" *ngIf="sucursalForm.get('direccion').invalid && sucursalForm.get('direccion').touched">
+            La dirección es requerida
+          </ion-note>
+
+          <ion-item>
+            <ion-label position="floating">Teléfono</ion-label>
+            <ion-input formControlName="telefono" type="tel"></ion-input>
+          </ion-item>
+          <ion-note color="danger" *ngIf="sucursalForm.get('telefono').invalid && sucursalForm.get('telefono').touched">
+            El teléfono es requerido
+          </ion-note>
+
+          <ion-item>
+            <ion-label position="floating">Horario</ion-label>
+            <ion-input formControlName="horario" type="text" placeholder="Lun-Vie: 9:00-18:00"></ion-input>
+          </ion-item>
+          <ion-note color="danger" *ngIf="sucursalForm.get('horario').invalid && sucursalForm.get('horario').touched">
+            El horario es requerido
+          </ion-note>
+
+          <ion-item>
+            <ion-label>Activo</ion-label>
+            <ion-toggle formControlName="activo"></ion-toggle>
+          </ion-item>
+
+          <div formGroupName="ubicacion" class="ion-margin-top">
+            <ion-item>
+              <ion-label position="floating">Latitud</ion-label>
+              <ion-input formControlName="lat" type="number" readonly></ion-input>
+            </ion-item>
+
+            <ion-item>
+              <ion-label position="floating">Longitud</ion-label>
+              <ion-input formControlName="lng" type="number" readonly></ion-input>
+            </ion-item>
+            <ion-note color="danger" *ngIf="sucursalForm.get('ubicacion').invalid && sucursalForm.get('ubicacion').touched">
+              La ubicación es requerida. Selecciona un punto en el mapa.
+            </ion-note>
+          </div>
+
+          <!-- Mapa de Google Maps -->
+          <div class="map-container ion-margin-top">
+            <div #map id="map" style="height: 300px; width: 100%; border-radius: 8px;"></div>
+            <ion-note>Haz clic en el mapa para seleccionar la ubicación</ion-note>
+          </div>
+
+          <div class="ion-padding-top">
+            <ion-button expand="block" type="submit" [disabled]="!sucursalForm.valid">
+              {{ isEditMode ? 'Actualizar' : 'Guardar' }}
+            </ion-button>
+            <ion-button expand="block" fill="outline" type="button" (click)="resetForm()" class="ion-margin-top">
+              Cancelar
+            </ion-button>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </form>
+
+    <!-- Lista de Sucursales Mejorada -->
+    <ion-card class="ion-margin-top">
+      <ion-card-header>
+        <ion-card-title>Sucursales Existentes</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <ion-list>
+          <ion-item *ngFor="let sucursal of sucursales">
+            <ion-thumbnail slot="start" *ngIf="sucursal.ubicacion" class="location-thumbnail" (click)="abrirEnGoogleMaps(sucursal)">
+              <ion-icon name="location" size="large" color="danger"></ion-icon>
+            </ion-thumbnail>
+            <ion-label>
+              <h2>{{ sucursal.nombre }}</h2>
+              <p>
+                <ion-icon name="home-outline" class="small-icon"></ion-icon>
+                {{ sucursal.direccion }}
+              </p>
+              <p>
+                <ion-icon name="call-outline" class="small-icon"></ion-icon>
+                {{ sucursal.telefono }}
+              </p>
+              <p>
+                <ion-icon name="time-outline" class="small-icon"></ion-icon>
+                {{ sucursal.horario }}
+              </p>
+              <ion-badge color="{{ sucursal.activo ? 'success' : 'medium' }}" class="ion-margin-top">
+                {{ sucursal.activo ? 'Activo' : 'Inactivo' }}
+              </ion-badge>
+            </ion-label>
+
+            <!-- Botones con iconos para acciones -->
+            <div slot="end" class="ion-no-margin action-buttons">
+              <ion-button fill="clear" color="primary" (click)="abrirEnGoogleMaps(sucursal)">
+                <ion-icon name="map-outline" slot="icon-only"></ion-icon>
+              </ion-button>
+              <ion-button fill="clear" color="primary" (click)="editSucursal(sucursal)">
+                <ion-icon name="create-outline" slot="icon-only"></ion-icon>
+              </ion-button>
+              <ion-button fill="clear" color="danger" (click)="confirmDelete(sucursal)">
+                <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-item>
+
+          <ion-item *ngIf="sucursales.length === 0">
+            <ion-label class="ion-text-center">
+              No hay sucursales registradas
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+  </div>
+<app-footer></app-footer>
+</ion-content>
+

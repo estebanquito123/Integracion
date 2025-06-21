@@ -7,14 +7,16 @@ import { IonicModule } from '@ionic/angular';
 import { VendedorPageRoutingModule } from './vendedor-routing.module';
 
 import { VendedorPage } from './vendedor.page';
+import { SharedModule } from "../../shared/shared.module";
 
 @NgModule({
   imports: [
     CommonModule,
     FormsModule,
     IonicModule,
-    VendedorPageRoutingModule
-  ],
+    VendedorPageRoutingModule,
+    SharedModule
+],
   declarations: [VendedorPage]
 })
 export class VendedorPageModule {}

@@ -21,10 +21,10 @@
             "inlineStyleLanguage": "scss",
             "assets": [
               {
-                "glob": "**/*",
-                "input": "src/assets",
-                "output": "assets"
-              },
+  "glob": "firebase-messaging-sw.js",
+  "input": "src",
+  "output": "/"
+},
               {
                 "glob": "**/*.svg",
                 "input": "node_modules/ionicons/dist/ionicons/svg",
@@ -91,7 +91,7 @@
             "buildTarget": "app:build"
           }
         },
-        "test": {
+         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
             "main": "src/test.ts",

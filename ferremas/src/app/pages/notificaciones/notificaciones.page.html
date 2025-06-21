@@ -1,0 +1,49 @@
+<!--notificaciones.page.html-->
+<ion-header>
+  <app-header></app-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Mis Notificaciones</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- Spinner de carga -->
+  <div *ngIf="cargando" class="ion-text-center ion-padding">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Cargando notificaciones...</p>
+  </div>
+
+  <!-- Lista de notificaciones -->
+  <ion-list *ngIf="!cargando">
+    <div *ngIf="notificaciones.length === 0" class="ion-text-center ion-padding">
+      <ion-icon name="notifications-off-outline" size="large" color="medium"></ion-icon>
+      <p>No tienes notificaciones por el momento</p>
+    </div>
+
+    <ion-item-sliding *ngFor="let notificacion of notificaciones">
+      <ion-item [class.unread]="!notificacion.leido" (click)="marcarComoLeida(notificacion)">
+        <ion-icon [name]="notificacion.tipo === 'pedido_listo' ? 'bag-check-outline' : 'notifications-outline'"
+                  slot="start" [color]="notificacion.leido ? 'medium' : 'primary'"></ion-icon>
+        <ion-label>
+          <h2>{{ notificacion.titulo }}</h2>
+          <p>{{ notificacion.mensaje }}</p>
+          <p class="fecha">{{ formatearFecha(notificacion.fecha) }}</p>
+        </ion-label>
+        <ion-badge *ngIf="!notificacion.leido" color="danger" slot="end">Nueva</ion-badge>
+      </ion-item>
+
+      <ion-item-options side="end">
+        <ion-item-option color="primary" (click)="verDetallesPedido(notificacion.ordenCompra)" *ngIf="notificacion.ordenCompra">
+          <ion-icon slot="icon-only" name="eye-outline"></ion-icon>
+        </ion-item-option>
+        <ion-item-option color="light" (click)="marcarComoLeida(notificacion)" *ngIf="!notificacion.leido">
+          <ion-icon slot="icon-only" name="checkmark-done-outline"></ion-icon>
+        </ion-item-option>
+      </ion-item-options>
+    </ion-item-sliding>
+  </ion-list>
+</ion-content>
+<app-footer></app-footer>

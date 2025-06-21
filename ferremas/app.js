@@ -1,100 +1,285 @@
-// app.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const { WebpayPlus } = require('transbank-sdk'); // Importamos el SDK de Transbank
+const admin = require('firebase-admin');
+const { WebpayPlus } = require('transbank-sdk');
+
+// Inicializar Firebase Admin
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.urlencoded({ extended: true })); // Necesario para leer POST de Webpay
-app.use(express.static('public'));
 
-// Configuración de integración para Transbank
-// Estas son las credenciales de prueba
-const tx = new WebpayPlus.Transaction(
-  WebpayPlus.commerceCode,
-  WebpayPlus.apiKey,
-  WebpayPlus.environment
-);
+const transaction = new WebpayPlus.Transaction();
 
-// Iniciar transacción
+// Endpoint: iniciar transacción
 app.post('/api/pagos/iniciar', async (req, res) => {
-  const { amount, buyOrder, sessionId } = req.body;
-
-  // URL a la que retornará el usuario después del pago
-  // Directamente a tu página de resultado
-  const returnUrl = 'http://localhost:8100/transbank-result';
+  const { amount, buyOrder, sessionId, returnUrl } = req.body;
 
   try {
-    const response = await tx.create(buyOrder, sessionId, amount, returnUrl);
-    console.log('Transacción iniciada:', response);
-
-    // Añadir parámetro para evitar el POST de retorno
-    const redirectUrl = `${response.url}?token_ws=${response.token}`;
-
+    const response = await transaction.create(buyOrder, sessionId, amount, returnUrl);
     res.json({
       token: response.token,
-      url: redirectUrl
+      url: response.url
     });
   } catch (error) {
-    console.error('Error al iniciar transacción:', error);
-    res.status(500).json({ error: 'No se pudo iniciar la transacción', details: error.message });
+    console.error('Error al iniciar transacción con Transbank:', error);
+    res.status(500).json({ error: 'No se pudo iniciar la transacción' });
   }
 });
 
-// Endpoint para verificar estado de transacción
+// Endpoint: verificar transacción
 app.get('/api/pagos/verificar/:token', async (req, res) => {
-  const { token } = req.params;
+  const token = req.params.token;
 
   try {
-    const response = await tx.status(token);
-    console.log('Estado de transacción:', response);
+    const response = await transaction.commit(token);
     res.json(response);
   } catch (error) {
-    console.error('Error al verificar estado:', error);
-    res.status(500).json({ error: 'No se pudo verificar el estado', details: error.message });
+    console.error('Error al verificar transacción:', error);
+    res.status(400).json({ error: 'No se pudo verificar la transacción' });
   }
 });
 
-// Endpoint para commit (confirmar) la transacción
-app.post('/api/pagos/confirmar', async (req, res) => {
+// FUNCIONES DE NOTIFICACIÓN PUSH
+
+// Utilidad para formatear data
+function formatFCMData(data) {
+  const result = {};
+  if (data) {
+    Object.keys(data).forEach(key => {
+      result[key] = typeof data[key] === 'object' ? JSON.stringify(data[key]) : String(data[key]);
+    });
+  }
+  return result;
+}
+
+// Endpoint: notificar vendedor
+app.post('/api/notificar-vendedor', async (req, res) => {
+  const { token, title, body, data } = req.body;
+
+  const message = {
+    token,
+    notification: {
+      title,
+      body
+    },
+    data: {
+      ...formatFCMData(data),
+      click_action: 'FLUTTER_NOTIFICATION_CLICK'
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'default',
+        channelId: 'vendedor_channel',
+        notificationPriority: 'PRIORITY_HIGH',
+        defaultSound: true,
+        defaultVibrateTimings: true,
+        defaultLightSettings: true
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1,
+          contentAvailable: true
+        }
+      },
+      headers: {
+        'apns-priority': '10'
+      }
+    }
+  };
+
+  try {
+    await admin.messaging().send(message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error enviando push al vendedor:', error);
+    res.status(500).json({ error: 'Fallo al enviar notificación al vendedor', details: error.message });
+  }
+});
+
+// Endpoint: notificar cliente
+app.post('/api/notificar-cliente', async (req, res) => {
+  const { token, title, body, data } = req.body;
+
+  const message = {
+    token,
+    notification: {
+      title,
+      body
+    },
+    data: {
+      ...formatFCMData(data),
+      click_action: 'FLUTTER_NOTIFICATION_CLICK'
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'default',
+        channelId: 'cliente_channel',
+        notificationPriority: 'PRIORITY_HIGH',
+        defaultSound: true,
+        defaultVibrateTimings: true,
+        defaultLightSettings: true
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1,
+          contentAvailable: true
+        }
+      },
+      headers: {
+        'apns-priority': '10'
+      }
+    }
+  };
+
+  try {
+    await admin.messaging().send(message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error enviando push al cliente:', error);
+    res.status(500).json({ error: 'Fallo al enviar notificación al cliente', details: error.message });
+  }
+});
+
+// Endpoint: notificar bodeguero
+app.post('/api/notificar-bodeguero', async (req, res) => {
+  const { token, title, body, data } = req.body;
+
+  const message = {
+    token,
+    notification: {
+      title,
+      body
+    },
+    data: {
+      ...formatFCMData(data),
+      click_action: 'FLUTTER_NOTIFICATION_CLICK'
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'default',
+        channelId: 'bodeguero_channel',
+        notificationPriority: 'PRIORITY_HIGH',
+        defaultSound: true,
+        defaultVibrateTimings: true,
+        defaultLightSettings: true
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1,
+          contentAvailable: true
+        }
+      },
+      headers: {
+        'apns-priority': '10'
+      }
+    }
+  };
+
+  try {
+    await admin.messaging().send(message);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error enviando push al bodeguero:', error);
+    res.status(500).json({ error: 'Fallo al enviar notificación al bodeguero', details: error.message });
+  }
+});
+
+// Endpoint: prueba de notificación
+app.post('/api/test-notification', async (req, res) => {
   const { token } = req.body;
 
   if (!token) {
-    return res.status(400).json({ error: 'Token no proporcionado' });
+    return res.status(400).json({ error: 'Se requiere un token FCM' });
   }
+
+  const message = {
+    token,
+    notification: {
+      title: 'Prueba de Notificación',
+      body: 'Esta es una notificación de prueba para verificar la configuración.'
+    },
+    data: {
+      type: 'test',
+      timestamp: Date.now().toString()
+    },
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'test_channel',
+        priority: 'high'
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          badge: 1
+        }
+      },
+      headers: {
+        'apns-priority': '10'
+      }
+    }
+  };
 
   try {
-    const response = await tx.commit(token);
-    console.log('Transacción confirmada:', response);
-    res.json(response);
+    const response = await admin.messaging().send(message);
+    res.status(200).json({
+      success: true,
+      messageId: response,
+      message: 'Notificación de prueba enviada correctamente'
+    });
   } catch (error) {
-    console.error('Error al confirmar transacción:', error);
-    res.status(500).json({ error: 'No se pudo confirmar la transacción', details: error.message });
+    console.error('Error enviando notificación de prueba:', error);
+    res.status(500).json({
+      error: 'Error al enviar notificación de prueba',
+      details: error.message,
+      errorCode: error.code
+    });
   }
 });
 
-// Ruta para debugging - recibe todos los parámetros de Transbank
-app.all('/api/pagos/debug', (req, res) => {
-  console.log('Método:', req.method);
-  console.log('Headers:', req.headers);
-  console.log('Query:', req.query);
-  console.log('Body:', req.body);
+// Endpoint: diagnóstico de FCM
+app.post('/api/debug-fcm', async (req, res) => {
+  const { token, details } = req.body;
 
-  // Simplemente responder con la info recibida
-  res.json({
-    method: req.method,
-    headers: req.headers,
-    query: req.query,
-    body: req.body
-  });
+  try {
+    await admin.firestore().collection('fcm_diagnostics').add({
+      token: token || 'no-token',
+      details: details || {},
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      userAgent: req.headers['user-agent']
+    });
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error logging FCM diagnostic info:', error);
+    res.status(500).json({ error: 'Error al guardar diagnóstico' });
+  }
 });
 
-// Escuchar
+// Iniciar el servidor
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
 });

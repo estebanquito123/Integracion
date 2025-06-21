@@ -1,11 +1,13 @@
+// transbank.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, timeout } from 'rxjs/operators';
 import { UtilsService } from './utils.service';
 import { environment } from '../../environments/environment';
+import { Router } from '@angular/router';
 
 @Injectable({
   providedIn: 'root'
@@ -15,6 +17,7 @@ export class TransbankService {
   private afAuth = inject(AngularFireAuth);
   private firestore = inject(AngularFirestore);
   private utilsSvc = inject(UtilsService);
+  private router = inject(Router);
 
   // URL del backend que maneja la comunicación con Transbank
   private backendApiUrl = environment.backendApiUrl || 'http://localhost:3000/api';
@@ -31,20 +34,10 @@ export class TransbankService {
     console.log('Enviando petición al backend:', body);
     return this.http.post(`${this.backendApiUrl}/pagos/iniciar`, body)
       .pipe(
+        timeout(30000), // Añadimos un timeout de 30 segundos
         catchError(error => {
           console.error('Error en la llamada HTTP al backend:', error);
           return throwError(() => new Error('Error al comunicarse con el servidor de pagos: ' + (error.message || error.statusText)));
-        })
-      );
-  }
-
-  // Confirmar una transacción después de que el usuario regresa de la página de pago
-  confirmarTransaccion(token: string): Observable<any> {
-    return this.http.post(`${this.backendApiUrl}/pagos/confirmar`, { token_ws: token })
-      .pipe(
-        catchError(error => {
-          console.error('Error al confirmar transacción:', error);
-          return throwError(() => new Error('Error al confirmar el pago: ' + (error.message || error.statusText)));
         })
       );
   }
@@ -96,84 +89,102 @@ export class TransbankService {
   }
 
   // Procesar el pago completo (desde la selección de productos hasta la redirección a Transbank)
-  async procesarPago(monto: number, productos: any[]): Promise<any> {
-    try {
-      // 1. Generar orden de compra
-      const ordenCompra = this.generarOrdenCompra();
-      console.log('Orden de compra generada:', ordenCompra);
+  async procesarPago(monto: number, productos: any[], retiro?: string, direccion?: string): Promise<any> {
+  try {
+    const ordenCompra = this.generarOrdenCompra();
+    console.log('🧾 Orden de compra generada:', ordenCompra);
 
-      // 2. Validar que el usuario esté autenticado
-      const usuario = await this.afAuth.currentUser;
-      if (!usuario) {
-        throw new Error('Debes iniciar sesión para realizar el pago');
-      }
-
-      // 3. Guardar la transacción en Firestore
-      console.log('Guardando transacción en Firestore...');
-      const transaccion = await this.guardarTransaccion({
-        ordenCompra,
-        monto,
-        productos: productos.map(p => ({
-          id: p.id,
-          nombre: p.nombre,
-          precio: p.precio
-        })),
-        fechaInicio: new Date()
-      });
-      console.log('Transacción guardada con ID:', transaccion.id);
-
-      // 4. Iniciar la transacción con Transbank a través del backend
-      return new Promise((resolve, reject) => {
-        console.log('Iniciando transacción con Transbank...');
-        this.iniciarTransaccion(monto, ordenCompra).subscribe({
-          next: (response) => {
-            console.log('Respuesta del backend recibida:', response);
-
-            if (!response.url || !response.token) {
-              this.actualizarEstadoTransaccion(transaccion.id, 'error', {
-                error: 'Respuesta inválida del servidor de pagos'
-              });
-              reject(new Error('Respuesta inválida del servidor de pagos'));
-              return;
-            }
-
-            // Guardamos información de la transacción en localStorage para recuperarla después
-            localStorage.setItem('currentTransaction', JSON.stringify({
-              transaccionId: transaccion.id,
-              token: response.token,
-              ordenCompra,
-              monto
-            }));
-
-            console.log('Redirigiendo a URL de pago:', response.url);
-
-            // Redirigir al usuario a la página de pago de Transbank
-            window.location.href = response.url;
-            resolve(response);
-          },
-          error: (error) => {
-            console.error('Error en iniciarTransaccion:', error);
-
-            // Actualizar el estado de la transacción a 'fallida'
-            this.actualizarEstadoTransaccion(transaccion.id, 'fallida', {
-              error: error.message || 'Error desconocido'
-            }).catch(err => console.error('Error al actualizar estado de transacción:', err));
-
-            this.utilsSvc.presentToast({
-              message: 'Error al iniciar la transacción de pago',
-              duration: 3000,
-              color: 'danger',
-              position: 'middle',
-              icon: 'alert-circle-outline'
-            });
-
-            reject(error);
-          }
-        });
-      });
-    } catch (error) {
-      console.error('Error en procesarPago:', error);
-      throw error;
+    const usuario = await this.afAuth.currentUser;
+    if (!usuario) {
+      throw new Error('Debes iniciar sesión para realizar el pago');
     }
+
+    // Store order data in localStorage before redirecting
+    localStorage.setItem('carritoWebpay', JSON.stringify(productos));
+    localStorage.setItem('direccionWebpay', direccion || '');
+    localStorage.setItem('retiroWebpay', retiro || '');
+    localStorage.setItem('currentTransaction', ordenCompra);
+
+    // Also store the transaction details in Firestore for recovery
+    await this.firestore.collection('transacciones').add({
+      ordenCompra,
+      monto,
+      productos,
+      retiro,
+      direccion,
+      fechaInicio: new Date(),
+      usuarioId: usuario.uid,
+      estado: 'iniciada'
+    });
+
+    const transaccion = await this.guardarTransaccion({
+      ordenCompra,
+      monto,
+      productos: productos.map(p => ({
+        id: p.id,
+        nombre: p.nombre,
+        precio: p.precio
+      })),
+      retiro,
+      direccion,
+      fechaInicio: new Date()
+    });
+
+    return new Promise((resolve, reject) => {
+      console.log('🔄 Iniciando transacción con Transbank...');
+
+      this.iniciarTransaccion(monto, ordenCompra).subscribe({
+        next: (response) => {
+          console.log('🔄 Respuesta del backend:', response);
+
+          if (!response.url || !response.token) {
+            this.actualizarEstadoTransaccion(transaccion.id, 'error', {
+              error: 'Respuesta inválida del servidor de pagos'
+            });
+            reject(new Error('Respuesta inválida del servidor de pagos'));
+            return;
+          }
+
+          console.log('✅ Token recibido:', response.token);
+          console.log('✅ URL de Webpay:', response.url);
+
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = response.url;
+
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'token_ws';
+          input.value = response.token;
+
+          form.appendChild(input);
+          document.body.appendChild(form);
+          form.submit();
+
+          resolve(response);
+        },
+        error: (error) => {
+          console.error('Error en iniciarTransaccion:', error);
+
+          this.actualizarEstadoTransaccion(transaccion.id, 'fallida', {
+            error: error.message || 'Error desconocido'
+          });
+
+          this.utilsSvc.presentToast({
+            message: 'Error al iniciar la transacción de pago',
+            duration: 3000,
+            color: 'danger',
+            position: 'middle',
+            icon: 'alert-circle-outline'
+          });
+
+          reject(error);
+        }
+      });
+    });
+  } catch (error) {
+    console.error('❌ Error en procesarPago:', error);
+    throw error;
   }
+}
 }
