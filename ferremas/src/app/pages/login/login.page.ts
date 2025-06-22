@@ -88,7 +88,6 @@ async login() {
 
     // Verificar que realmente tenemos datos de usuario
     if (usuarioData && usuarioData.uid) {
-      this.mostrarAlerta('Éxito', 'Sesión iniciada exitosamente');
       this.initializePushNotifications(usuarioData.uid);
 
       let ruta = '/inicio'; // ruta por defecto

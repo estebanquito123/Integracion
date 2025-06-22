@@ -1,3 +1,4 @@
+//backend app.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -283,3 +284,26 @@ app.post('/api/debug-fcm', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
+
+// Endpoint: actualizar estado de pedido (para prueba de carga)
+app.patch('/api/pedidos/:id', async (req, res) => {
+  const pedidoId = req.params.id;
+  const { estado } = req.body;
+
+  if (!estado) {
+    return res.status(400).json({ error: 'Se requiere el nuevo estado en el campo "estado"' });
+  }
+
+  try {
+    await admin.firestore().collection('pedidosPendientes').doc(pedidoId).update({
+      estadoPedido: estado
+    });
+
+    console.log(`✅ Pedido ${pedidoId} actualizado a estado: ${estado}`);
+    res.status(200).json({ success: true, mensaje: `Estado del pedido ${pedidoId} actualizado a ${estado}` });
+  } catch (error) {
+    console.error('❌ Error al actualizar pedido en Firestore:', error);
+    res.status(500).json({ error: 'No se pudo actualizar el estado del pedido' });
+  }
+});
+
