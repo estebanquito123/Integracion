@@ -280,10 +280,7 @@ app.post('/api/debug-fcm', async (req, res) => {
   }
 });
 
-// Iniciar el servidor
-app.listen(PORT, () => {
-  console.log(`Servidor escuchando en el puerto ${PORT}`);
-});
+
 
 // Endpoint: actualizar estado de pedido (para prueba de carga)
 app.patch('/api/pedidos/:id', async (req, res) => {
@@ -340,6 +337,10 @@ app.get('/api/generar-pedidos-csv', async (req, res) => {
     console.error('Error generando pedidos y CSV:', error);
     res.status(500).json({ error: 'No se pudo generar pedidos y CSV' });
   }
+});
+
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
 
 });
