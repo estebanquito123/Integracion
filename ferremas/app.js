@@ -279,69 +279,25 @@ app.post('/api/debug-fcm', async (req, res) => {
     res.status(500).json({ error: 'Error al guardar diagnóstico' });
   }
 });
+app.get('/api/reportes-contador', async (req, res) => {
+const { uid } = req.query;
 
+if (!uid) {
+return res.status(400).json({ error: 'Se requiere uid' });
+}
 
-
-// Endpoint: actualizar estado de pedido (para prueba de carga)
-app.patch('/api/pedidos/:id', async (req, res) => {
-  const pedidoId = req.params.id;
-  const { estado } = req.body;
-
-  if (!estado) {
-    return res.status(400).json({ error: 'Se requiere el nuevo estado en el campo "estado"' });
-  }
-
-  try {
-    await admin.firestore().collection('pedidosPendientes').doc(pedidoId).update({
-      estadoPedido: estado
-    });
-
-    console.log(`✅ Pedido ${pedidoId} actualizado a estado: ${estado}`);
-    res.status(200).json({ success: true, mensaje: `Estado del pedido ${pedidoId} actualizado a ${estado}` });
-  } catch (error) {
-    console.error('❌ Error al actualizar pedido en Firestore:', error);
-    res.status(500).json({ error: 'No se pudo actualizar el estado del pedido' });
-  }
-
-  const fs = require('fs');
-const path = require('path');
-
-// Endpoint para generar 50 pedidos y retornar un CSV
-app.get('/api/generar-pedidos-csv', async (req, res) => {
-  const batch = admin.firestore().batch();
-  const pedidosRef = admin.firestore().collection('pedidosPendientes');
-
-  const csvLines = ['pedidoId'];
-
-  for (let i = 1; i <= 50; i++) {
-    const id = `pedido${i}`;
-    const ref = pedidosRef.doc(id);
-    batch.set(ref, {
-      estadoPedido: 'ACEPTADO',
-      creadoDesde: 'test_carga',
-      fecha: new Date()
-    });
-    csvLines.push(id);
-  }
-
-  try {
-    await batch.commit();
-
-    const filePath = path.join(__dirname, 'pedidos.csv');
-    fs.writeFileSync(filePath, csvLines.join('\n'));
-
-    res.setHeader('Content-Disposition', 'attachment; filename=pedidos.csv');
-    res.setHeader('Content-Type', 'text/csv');
-    res.send(csvLines.join('\n'));
-  } catch (error) {
-    console.error('Error generando pedidos y CSV:', error);
-    res.status(500).json({ error: 'No se pudo generar pedidos y CSV' });
-  }
+// Simular carga de datos del contador
+res.json({
+uid,
+resumen: {
+pedidosProcesados: Math.floor(Math.random() * 100),
+totalVentas: Math.floor(Math.random() * 100000),
+ultimaConexion: new Date().toISOString()
+}
+});
 });
 
+// Iniciar el servidor
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
-
-});
-
