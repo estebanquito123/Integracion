@@ -305,5 +305,42 @@ app.patch('/api/pedidos/:id', async (req, res) => {
     console.error('❌ Error al actualizar pedido en Firestore:', error);
     res.status(500).json({ error: 'No se pudo actualizar el estado del pedido' });
   }
+
+  const fs = require('fs');
+const path = require('path');
+
+// Endpoint para generar 50 pedidos y retornar un CSV
+app.get('/api/generar-pedidos-csv', async (req, res) => {
+  const batch = admin.firestore().batch();
+  const pedidosRef = admin.firestore().collection('pedidosPendientes');
+
+  const csvLines = ['pedidoId'];
+
+  for (let i = 1; i <= 50; i++) {
+    const id = `pedido${i}`;
+    const ref = pedidosRef.doc(id);
+    batch.set(ref, {
+      estadoPedido: 'ACEPTADO',
+      creadoDesde: 'test_carga',
+      fecha: new Date()
+    });
+    csvLines.push(id);
+  }
+
+  try {
+    await batch.commit();
+
+    const filePath = path.join(__dirname, 'pedidos.csv');
+    fs.writeFileSync(filePath, csvLines.join('\n'));
+
+    res.setHeader('Content-Disposition', 'attachment; filename=pedidos.csv');
+    res.setHeader('Content-Type', 'text/csv');
+    res.send(csvLines.join('\n'));
+  } catch (error) {
+    console.error('Error generando pedidos y CSV:', error);
+    res.status(500).json({ error: 'No se pudo generar pedidos y CSV' });
+  }
+});
+
 });
 
